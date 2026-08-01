@@ -23,6 +23,9 @@ backup/
 # Dump database: berisi hash password & data distribusi asli
 *.sql
 
+# Stub yang dibuat & ditimpa otomatis oleh cPanel Setup Python App
+passenger_wsgi.py
+
 # OS / editor
 Thumbs.db
 .DS_Store
