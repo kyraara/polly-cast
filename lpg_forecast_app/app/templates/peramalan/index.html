@@ -1,0 +1,2080 @@
+{% extends "base.html" %}
+
+{% block title %}Analisis Peramalan - Sistem Peramalan LPG{% endblock %}
+
+{% block extra_css %}
+<style>
+    .step-circle {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background-color: #ffffff;
+        color: var(--text-muted);
+        font-weight: 700;
+        font-size: 1.1rem;
+        border: 2px solid var(--border-card) !important;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        z-index: 2;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+        cursor: pointer;
+    }
+
+    .step-item.active .step-circle {
+        border-color: var(--primary) !important;
+        background-color: var(--primary);
+        color: #ffffff;
+        box-shadow: 0 0 0 4px rgba(27, 42, 140, 0.15);
+    }
+
+    .step-item.completed .step-circle {
+        border-color: var(--success) !important;
+        background-color: var(--success);
+        color: #ffffff;
+        box-shadow: 0 2px 8px rgba(16, 185, 129, 0.2);
+    }
+
+    .step-label {
+        font-weight: 500;
+        color: var(--text-muted);
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+
+    .step-item.active .step-label {
+        color: var(--primary) !important;
+        font-weight: 700;
+    }
+
+    .step-item.completed .step-label {
+        color: var(--success) !important;
+        font-weight: 600;
+    }
+
+    .progress-bar-glow {
+        box-shadow: 0 0 10px rgba(27, 42, 140, 0.3);
+    }
+
+    .step-content {
+        display: none;
+        animation: fadeInUp 0.4s ease;
+    }
+
+    .step-content.active {
+        display: block;
+    }
+
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(12px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .list-group-item {
+        border-radius: 8px !important;
+        margin-bottom: 8px;
+        transition: background-color 0.25s ease, transform 0.2s ease;
+    }
+
+    .list-group-item.active-item {
+        background-color: rgba(27, 42, 140, 0.04) !important;
+        border-left: 3px solid var(--primary) !important;
+        font-weight: 600;
+    }
+
+    .list-group-item.active-item-hw {
+        background-color: rgba(245, 158, 11, 0.05) !important;
+        border-left: 3px solid var(--warning) !important;
+        font-weight: 600;
+    }
+
+    .list-group-item.done-item {
+        background-color: rgba(16, 185, 129, 0.03) !important;
+    }
+
+    .pulse-animation {
+        animation: stepPulse 1.8s infinite ease-in-out;
+    }
+
+    @keyframes stepPulse {
+        0% {
+            box-shadow: 0 0 0 0 rgba(27, 42, 140, 0.25);
+        }
+
+        70% {
+            box-shadow: 0 0 0 8px rgba(27, 42, 140, 0);
+        }
+
+        100% {
+            box-shadow: 0 0 0 0 rgba(27, 42, 140, 0);
+        }
+    }
+
+    .pulse-warning {
+        animation: warningPulse 1.8s infinite ease-in-out;
+    }
+
+    @keyframes warningPulse {
+        0% {
+            box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.3);
+        }
+
+        70% {
+            box-shadow: 0 0 0 8px rgba(245, 158, 11, 0);
+        }
+
+        100% {
+            box-shadow: 0 0 0 0 rgba(245, 158, 11, 0);
+        }
+    }
+
+    .step-detail {
+        background: #f8f9fc;
+        border-radius: 8px;
+        margin-top: 8px;
+        padding: 12px;
+        font-size: 0.8rem;
+        border: 1px solid #e9ecef;
+    }
+
+    .step-detail .stat-label {
+        color: #6b7280;
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+    }
+
+    .step-detail .stat-value {
+        font-weight: 700;
+        color: var(--text-primary);
+        font-size: 0.85rem;
+    }
+
+    .step-detail .badge-pill-sm {
+        font-size: 0.7rem;
+        padding: 2px 10px;
+        border-radius: 20px;
+    }
+
+    .mini-chart-container {
+        height: 100px;
+        width: 100%;
+        margin-top: 6px;
+        position: relative;
+    }
+
+    .step-detail table {
+        margin-bottom: 0;
+        font-size: 0.78rem;
+    }
+
+    .step-detail table th {
+        font-weight: 600;
+        color: #6b7280;
+        border-bottom: 1px solid #e5e7eb;
+        padding: 3px 6px;
+    }
+
+    .step-detail table td {
+        padding: 3px 6px;
+        border-bottom: 1px solid #f3f4f6;
+    }
+
+    .split-visual {
+        display: flex;
+        height: 40px;
+        border-radius: 10px;
+        overflow: hidden;
+        margin: 1rem 0;
+    }
+
+    .split-visual .split-train {
+        background: linear-gradient(135deg, var(--primary), var(--primary-light));
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 0.85rem;
+    }
+
+    .split-visual .split-test {
+        background: linear-gradient(135deg, #f59e0b, #d97706);
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 0.85rem;
+    }
+
+    .preprocessing-loading {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 4rem 2rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Page Greeter -->
+<div class="page-greeter d-flex flex-wrap justify-content-between align-items-start gap-3">
+    <div>
+        <h1 class="page-title">Analisis Peramalan LPG</h1>
+        <p class="page-subtitle">Pelatihan Model Time Series Secara Adaptif</p>
+    </div>
+    <div>
+        <button id="btnOpenParams" class="btn btn-outline-secondary d-flex align-items-center gap-2 fw-600 shadow-sm"
+            style="border-radius: 10px; font-size: 0.85rem; padding: 0.55rem 1.1rem; border-color: #cbd5e1; background-color: #ffffff; color: var(--text-secondary);">
+            <i class="bi bi-gear-fill text-warning"></i> Perbarui Parameter Prediksi
+        </button>
+    </div>
+</div>
+
+<!-- Main Process Card -->
+<div class="card shadow-sm mb-4" style="border-radius:16px; border: 1px solid var(--border-card); overflow:hidden;">
+    <div class="card-body p-4">
+        <!-- Stepper Container -->
+        <div class="d-flex flex-wrap justify-content-between align-items-center position-relative mb-5 mt-2">
+            <div class="position-absolute top-50 start-0 w-100 translate-middle-y d-none d-md-block"
+                style="height: 4px; background-color: #e2e8f0; z-index: 1;">
+                <div id="stepperProgressBar" class="progress-bar-glow bg-primary h-100"
+                    style="width: 0%; transition: width 0.4s ease;"></div>
+            </div>
+
+            <div class="step-item text-center position-relative active" style="z-index: 2; width: 22%;" data-step="1">
+                <div class="step-circle mx-auto" id="step1">1</div>
+                <div class="step-label mt-2 fw-600 fs-13 text-secondary" id="step1Label">Preprocessing</div>
+            </div>
+
+            <div class="step-item text-center position-relative" style="z-index: 2; width: 22%;" data-step="2">
+                <div class="step-circle mx-auto" id="step2">2</div>
+                <div class="step-label mt-2 fw-600 fs-13 text-secondary" id="step2Label">Pemisahan Data</div>
+            </div>
+
+            <div class="step-item text-center position-relative" style="z-index: 2; width: 22%;" data-step="3">
+                <div class="step-circle mx-auto" id="step3">3</div>
+                <div class="step-label mt-2 fw-600 fs-13 text-secondary" id="step3Label">Implementasi Model</div>
+            </div>
+
+            <div class="step-item text-center position-relative" style="z-index: 2; width: 22%;" data-step="4">
+                <div class="step-circle mx-auto" id="step4">4</div>
+                <div class="step-label mt-2 fw-600 fs-13 text-secondary" id="step4Label">Evaluasi</div>
+            </div>
+        </div>
+
+        <hr style="border-color:#e2e8f0;" class="my-4">
+
+        <!-- ===== STEP 1: PREPROCESSING ===== -->
+        <div class="step-content active" id="stepContent1">
+            <div class="text-center text-muted fw-700 fs-12 mb-4 tracking-wide text-uppercase">
+                <i class="bi bi-arrow-down-circle-fill text-primary me-1"></i> TAHAP 1: PREPROCESSING DATA
+            </div>
+
+            <div class="preprocessing-loading" id="preprocessingLoading">
+                <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;"></div>
+                <h5 class="fw-600 text-muted">Memuat data preprocessing...</h5>
+                <p class="text-muted" style="font-size:0.85rem;">Mengambil data distribusi dan menganalisis statistik
+                    deskriptif.</p>
+            </div>
+
+            <div class="preprocessing-loading d-none" id="preprocessingError">
+                <i class="bi bi-exclamation-triangle-fill text-warning" style="font-size: 3rem;"></i>
+                <h5 class="fw-600 text-muted mt-3">Gagal memuat data</h5>
+                <p class="text-muted" id="preprocessingErrorText" style="font-size:0.85rem;"></p>
+            </div>
+
+            <div class="d-none" id="preprocessingContent">
+                <div class="alert alert-info border-0 p-3 mb-4 d-flex align-items-center gap-3"
+                    style="border-radius: 12px; background-color: #f0f5ff; color: #1e3a8a;">
+                    <i class="bi bi-info-circle-fill fs-4 text-primary"></i>
+                    <div>
+                        <span class="d-block fw-700 fs-13">Dataset Distribusi LPG</span>
+                        <small class="fs-12 text-secondary" id="datasetInfoPreprocessing">Memuat...</small>
+                    </div>
+                </div>
+
+                <div class="row g-3 mb-4" id="statCardsContainer"></div>
+
+
+
+                <div class="card shadow-sm border-0 overflow-hidden"
+                    style="border-radius: 12px; border: 1px solid var(--border-card) !important;">
+                    <div class="card-header bg-white px-4 pt-4 pb-0 border-0">
+                        <div class="d-flex align-items-center justify-content-between mb-3">
+                            <div>
+                                <h2 class="fw-700 mb-0" style="font-size:1rem;color:var(--text-primary);">Visualisasi
+                                    EDA</h2>
+                                <p class="text-muted mb-0" style="font-size:0.78rem;">Deret waktu, boxplot, dan
+                                    dekomposisi musiman</p>
+                            </div>
+                        </div>
+                        <ul class="nav nav-tabs border-0" id="preprocessingTabs" role="tablist" style="gap:4px;">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active px-3 py-2" id="ts-tab" data-bs-toggle="tab"
+                                    data-bs-target="#tsPane" type="button" role="tab"
+                                    style="font-size:0.83rem;font-weight:500;">
+                                    <i class="bi bi-graph-up me-1"></i> Deret Waktu
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link px-3 py-2" id="boxplot-tab" data-bs-toggle="tab"
+                                    data-bs-target="#boxplotPane" type="button" role="tab"
+                                    style="font-size:0.83rem;font-weight:500;">
+                                    <i class="bi bi-box-seam me-1"></i> Boxplot & Outlier
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link px-3 py-2" id="decomp-tab" data-bs-toggle="tab"
+                                    data-bs-target="#decompPane" type="button" role="tab"
+                                    style="font-size:0.83rem;font-weight:500;">
+                                    <i class="bi bi-grid-3x3-gap me-1"></i> Dekomposisi
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="card-body px-4 pb-4 pt-3">
+                        <div class="tab-content" id="preprocessingTabsContent">
+                            <div class="tab-pane fade show active" id="tsPane" role="tabpanel">
+                                <div style="position:relative;height:380px;width:100%;">
+                                    <canvas id="tsChart"></canvas>
+                                </div>
+                                <div id="narasiValidasiContainer" class="mt-3 p-3 rounded-3 d-none" style="background:rgba(220,38,38,0.05);border-left:4px solid #dc2626;">
+                                    <p class="mb-0" id="narasiValidasiText" style="font-size:0.85rem;line-height:1.7;color:var(--text-primary);text-align:justify;"></p>
+                                </div>
+                            </div>
+                            <div class="tab-pane fade" id="boxplotPane" role="tabpanel">
+                                <div class="row align-items-center g-4">
+                                    <div class="col-lg-6">
+                                        <div
+                                            style="position:relative;height:320px;display:flex;align-items:center;justify-content:center;">
+                                            <canvas id="boxplotChart"></canvas>
+                                        </div>
+                                    </div>
+                                    <div class="col-lg-6">
+                                        <h3 class="fw-700 mb-3" style="font-size:0.95rem;color:var(--text-primary);">
+                                            Detail Statistik & Outliers</h3>
+                                        <div class="table-responsive">
+                                            <table class="table table-sm" style="font-size:0.83rem;">
+                                                <tbody id="statsDetailTable"></tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div id="narasiBoxplotContainer" class="mt-3 p-3 rounded-3 d-none"
+                                     style="background:rgba(59,130,246,0.05);border-left:4px solid #3b82f6;">
+                                    <p class="mb-0" id="narasiBoxplotText" style="font-size:0.82rem;line-height:1.6;color:var(--text-primary);text-align:justify;"></p>
+                                </div>
+                            </div>
+                            <div class="tab-pane fade" id="decompPane" role="tabpanel">
+                                <div class="row g-3">
+                                    <div class="col-md-4">
+                                        <p class="text-center fw-600 text-secondary mb-2" style="font-size:0.82rem;">
+                                            Trend Component</p>
+                                        <div style="position:relative;height:220px;">
+                                            <canvas id="trendChart"></canvas>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <p class="text-center fw-600 text-secondary mb-2" style="font-size:0.82rem;">
+                                            Seasonal Component</p>
+                                        <div style="position:relative;height:220px;">
+                                            <canvas id="seasonalChart"></canvas>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <p class="text-center fw-600 text-secondary mb-2" style="font-size:0.82rem;">
+                                            Residual Component</p>
+                                        <div style="position:relative;height:220px;">
+                                            <canvas id="residualChart"></canvas>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div id="narasiDecompContainer" class="mt-3 p-3 rounded-3 d-none"
+                                     style="background:rgba(16,185,129,0.05);border-left:4px solid #10b981;">
+                                    <p class="mb-0" id="narasiDecompText" style="font-size:0.82rem;line-height:1.6;color:var(--text-primary);text-align:justify;"></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== STEP 2: PEMISAHAN DATA ===== -->
+        <div class="step-content" id="stepContent2">
+            <div class="text-center text-muted fw-700 fs-12 mb-4 tracking-wide text-uppercase">
+                <i class="bi bi-arrow-down-circle-fill text-primary me-1"></i> TAHAP 2: PEMISAHAN DATA
+            </div>
+
+            <div id="splitContent">
+                <div class="preprocessing-loading">
+                    <div class="spinner-border text-primary mb-3" role="status" style="width: 2.5rem; height: 2.5rem;">
+                    </div>
+                    <h5 class="fw-600 text-muted">Menghitung pembagian data...</h5>
+                </div>
+            </div>
+
+            <div class="d-none" id="splitReady">
+                <div class="row g-4 align-items-center">
+                    <div class="col-lg-6">
+                        <div class="card border-0 p-4"
+                            style="background: linear-gradient(135deg, #f0f5ff, #e8f0fe); border-radius: 16px;">
+                            <div class="d-flex align-items-center gap-3 mb-3">
+                                <span class="d-flex align-items-center justify-content-center text-white"
+                                    style="width: 48px; height: 48px; border-radius: 12px; background: linear-gradient(135deg, var(--primary), var(--primary-light)); font-size: 1.3rem;">
+                                    <i class="bi bi-diagram-3-fill"></i>
+                                </span>
+                                <div>
+                                    <h5 class="fw-700 mb-0" style="font-size: 1rem;">Rasio Pemisahan Data</h5>
+                                    <p class="text-muted mb-0" style="font-size: 0.82rem;">70% data latih / 30% data uji
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="split-visual">
+                                <div class="split-train" id="trainBar" style="width: 70%;">70% Training</div>
+                                <div class="split-test" id="testBar" style="width: 30%;">30% Testing</div>
+                            </div>
+                            <div class="row g-3 mt-2">
+                                <div class="col-6">
+                                    <div class="bg-white p-3 rounded-3 border"
+                                        style="border-color: #e2e8f0 !important;">
+                                        <span class="d-block text-muted fs-11 fw-600">Data Latih (Train)</span>
+                                        <strong class="fs-5 text-primary" id="trainCount">-</strong>
+                                        <small class="d-block text-muted" style="font-size:0.75rem;">observasi
+                                            bulanan</small>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="bg-white p-3 rounded-3 border"
+                                        style="border-color: #e2e8f0 !important;">
+                                        <span class="d-block text-muted fs-11 fw-600">Data Uji (Test)</span>
+                                        <strong class="fs-5 text-warning" id="testCount">-</strong>
+                                        <small class="d-block text-muted" style="font-size:0.75rem;">observasi
+                                            bulanan</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-6">
+                        <div class="card border-0 p-4"
+                            style="background: #f8fafc; border-radius: 16px; border: 1px solid var(--border-card) !important;">
+                            <h6 class="fw-700 mb-3" style="font-size: 0.9rem;"><i
+                                    class="bi bi-info-circle-fill text-primary me-2"></i> Informasi Split</h6>
+                            <ul class="list-unstyled mb-0" style="font-size: 0.85rem;">
+                                <li class="d-flex align-items-center gap-2 mb-2">
+                                    <i class="bi bi-check2-circle text-success"></i>
+                                    <span>Data latih digunakan untuk melatih model SARIMA dan Holt-Winters</span>
+                                </li>
+                                <li class="d-flex align-items-center gap-2 mb-2">
+                                    <i class="bi bi-check2-circle text-success"></i>
+                                    <span>Data uji digunakan untuk mengevaluasi akurasi peramalan</span>
+                                </li>
+                                <li class="d-flex align-items-center gap-2 mb-2">
+                                    <i class="bi bi-check2-circle text-success"></i>
+                                    <span>Metrik evaluasi: MAE, RMSE, dan MAPE</span>
+                                </li>
+                                <li class="d-flex align-items-center gap-2">
+                                    <i class="bi bi-check2-circle text-success"></i>
+                                    <span>Model terbaik dipilih berdasarkan MAPE terendah</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== STEP 3: IMPLEMENTASI MODEL ===== -->
+        <div class="step-content" id="stepContent3">
+            <div class="text-center text-muted fw-700 fs-12 mb-4 tracking-wide text-uppercase">
+                <i class="bi bi-arrow-down-circle-fill text-primary me-1"></i> TAHAP 3: IMPLEMENTASI MODEL
+            </div>
+
+            <div class="text-center mb-4">
+                <button id="btnStartForecast"
+                    class="btn btn-primary btn-lg px-5 py-2.5 fw-semibold d-inline-flex align-items-center gap-2"
+                    style="border-radius:10px; font-size:0.95rem; background: linear-gradient(135deg, var(--primary), var(--primary-light)); border: none; box-shadow: 0 4px 12px rgba(27, 42, 140, 0.25);">
+                    <i class="bi bi-play-fill fs-5"></i> MULAI PELATIHAN MODEL
+                </button>
+            </div>
+
+            <div class="row g-4">
+                <div class="col-md-6">
+                    <div class="card h-100 shadow-sm border-0 overflow-hidden"
+                        style="border-radius: 12px; box-shadow: 0 4px 15px rgba(27,42,140,0.04) !important; border: 1px solid rgba(27,42,140,0.08) !important;">
+                        <div class="px-4 py-3 d-flex align-items-center justify-content-between text-white"
+                            style="background: linear-gradient(135deg, #1b2a8c, #2d40b5);">
+                            <h5 class="mb-0 fw-700 fs-14 d-flex align-items-center gap-2">
+                                <i class="bi bi-cpu-fill"></i> SARIMA
+                            </h5>
+                        </div>
+                        <div class="card-body p-4" style="background-color: #fcfdfe;">
+                            <ul class="list-group list-group-flush border-0" id="sarimaStepsList">
+                                <li class="list-group-item d-flex flex-column px-3 py-2.5 bg-transparent border-0"
+                                    id="sarima_step1">
+                                    <div class="d-flex align-items-center justify-content-between w-100">
+                                        <span class="fs-13 text-secondary d-flex align-items-center gap-2">
+                                            <i class="bi bi-circle text-primary fs-11"></i> Uji Stasioner
+                                        </span>
+                                        <span class="status-icon"><i class="bi bi-dash-circle text-muted"></i></span>
+                                    </div>
+                                    <div class="step-detail collapse" id="sarima_step1_detail">
+                                        <div class="row g-2">
+                                            <div class="col-4">
+                                                <div class="stat-label">ADF Statistic</div>
+                                                <div class="stat-value" id="sar1_adf">-</div>
+                                            </div>
+                                            <div class="col-4">
+                                                <div class="stat-label">p-value</div>
+                                                <div class="stat-value" id="sar1_pval">-</div>
+                                            </div>
+                                            <div class="col-4">
+                                                <div class="stat-label">Stasioner</div>
+                                                <div class="stat-value" id="sar1_status">-</div>
+                                            </div>
+                                        </div>
+                                        <div class="row g-2 mt-1">
+                                            <div class="col-12">
+                                                <div class="stat-label">Kesimpulan</div>
+                                                <div class="text-secondary" id="sar1_conclusion"
+                                                    style="font-size:0.78rem;"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </li>
+                                <li class="list-group-item d-flex flex-column px-3 py-2.5 bg-transparent border-0"
+                                    id="sarima_step2">
+                                    <div class="d-flex align-items-center justify-content-between w-100">
+                                        <span class="fs-13 text-secondary d-flex align-items-center gap-2">
+                                            <i class="bi bi-circle text-primary fs-11"></i> Differencing (Musiman &amp;
+                                            Non-Musiman)
+                                        </span>
+                                        <span class="status-icon"><i class="bi bi-dash-circle text-muted"></i></span>
+                                    </div>
+                                    <div class="step-detail collapse" id="sarima_step2_detail">
+                                        <div class="row g-2">
+                                            <div class="col-4">
+                                                <div class="stat-label">d (Non-musiman)</div>
+                                                <div class="stat-value" id="sar2_d">-</div>
+                                            </div>
+                                            <div class="col-4">
+                                                <div class="stat-label">D (Musiman)</div>
+                                                <div class="stat-value" id="sar2_D">-</div>
+                                            </div>
+                                            <div class="col-4">
+                                                <div class="stat-label">Periode (s)</div>
+                                                <div class="stat-value" id="sar2_s">-</div>
+                                            </div>
+                                        </div>
+                                        <div class="row g-2 mt-1">
+                                            <div class="col-12">
+                                                <div class="stat-label">Kesimpulan</div>
+                                                <div class="text-secondary" id="sar2_conclusion"
+                                                    style="font-size:0.78rem;"></div>
+                                            </div>
+                                        </div>
+                                        <div class="mini-chart-container" id="sarima_diff_chart_container"
+                                            style="display:none;">
+                                            <canvas id="sarimaDiffChart"></canvas>
+                                        </div>
+                                    </div>
+                                </li>
+                                <li class="list-group-item d-flex flex-column px-3 py-2.5 bg-transparent border-0"
+                                    id="sarima_step3">
+                                    <div class="d-flex align-items-center justify-content-between w-100">
+                                        <span class="fs-13 text-secondary d-flex align-items-center gap-2">
+                                            <i class="bi bi-circle text-primary fs-11"></i> Identifikasi Parameter Model
+                                        </span>
+                                        <span class="status-icon"><i class="bi bi-dash-circle text-muted"></i></span>
+                                    </div>
+                                    <div class="step-detail collapse" id="sarima_step3_detail">
+                                        <div class="row g-2">
+                                            <div class="col-6">
+                                                <div class="stat-label">Order (p,d,q)</div>
+                                                <div class="stat-value" id="sar3_order">-</div>
+                                            </div>
+                                            <div class="col-6">
+                                                <div class="stat-label">Seasonal (P,D,Q,s)</div>
+                                                <div class="stat-value" id="sar3_seasonal">-</div>
+                                            </div>
+                                        </div>
+                                        <div class="row g-2 mt-1">
+                                            <div class="col-12">
+                                                <div class="stat-label">Kesimpulan</div>
+                                                <div class="text-secondary" id="sar3_conclusion"
+                                                    style="font-size:0.78rem;"></div>
+                                            </div>
+                                        </div>
+                                        <div class="row g-2 mt-1">
+                                            <div class="col-6">
+                                                <div class="stat-label">ACF</div>
+                                                <div class="mini-chart-container"><canvas id="sarimaAcfChart"></canvas>
+                                                </div>
+                                            </div>
+                                            <div class="col-6">
+                                                <div class="stat-label">PACF</div>
+                                                <div class="mini-chart-container"><canvas id="sarimaPacfChart"></canvas>
+                                </div>
+                                <div id="narasiDecompContainer" class="mt-3 p-3 rounded-3 d-none"
+                                     style="background:rgba(16,185,129,0.05);border-left:4px solid #10b981;">
+                                    <p class="mb-0" id="narasiDecompText" style="font-size:0.82rem;line-height:1.6;color:var(--text-primary);text-align:justify;"></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                                </li>
+                                <li class="list-group-item d-flex flex-column px-3 py-2.5 bg-transparent border-0"
+                                    id="sarima_step4">
+                                    <div class="d-flex align-items-center justify-content-between w-100">
+                                        <span class="fs-13 text-secondary d-flex align-items-center gap-2">
+                                            <i class="bi bi-circle text-primary fs-11"></i> Estimasi Parameter Model
+                                        </span>
+                                        <span class="status-icon"><i class="bi bi-dash-circle text-muted"></i></span>
+                                    </div>
+                                    <div class="step-detail collapse" id="sarima_step4_detail">
+                                        <div class="row g-2">
+                                            <div class="col-6">
+                                                <div class="stat-label">Order (p,d,q)</div>
+                                                <div class="stat-value" id="sar4_order">-</div>
+                                            </div>
+                                            <div class="col-6">
+                                                <div class="stat-label">Seasonal (P,D,Q,s)</div>
+                                                <div class="stat-value" id="sar4_seasonal">-</div>
+                                            </div>
+                                        </div>
+                                        <div class="row g-2 mt-1">
+                                            <div class="col-6">
+                                                <div class="stat-label">AIC</div>
+                                                <div class="stat-value" id="sar4_aic">-</div>
+                                            </div>
+                                            <div class="col-6">
+                                                <div class="stat-label">BIC</div>
+                                                <div class="stat-value" id="sar4_bic">-</div>
+                                            </div>
+                                        </div>
+                                        <div class="mt-2" id="sar4_coeff_table_wrapper" style="display:none;">
+                                            <div class="stat-label mb-1">Koefisien Model</div>
+                                            <table class="table table-sm" id="sar4_coeff_table">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Parameter</th>
+                                                        <th>Koefisien</th>
+                                                        <th>p-value</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody></tbody>
+                                            </table>
+                                        </div>
+                                        <div class="row g-2 mt-1">
+                                            <div class="col-12">
+                                                <div class="stat-label">Kesimpulan</div>
+                                                <div class="text-secondary" id="sar4_conclusion"
+                                                    style="font-size:0.78rem;"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </li>
+                                <li class="list-group-item d-flex flex-column px-3 py-2.5 bg-transparent border-0"
+                                    id="sarima_step5">
+                                    <div class="d-flex align-items-center justify-content-between w-100">
+                                        <span class="fs-13 text-secondary d-flex align-items-center gap-2">
+                                            <i class="bi bi-circle text-primary fs-11"></i> Uji Diagnostik
+                                        </span>
+                                        <span class="status-icon"><i class="bi bi-dash-circle text-muted"></i></span>
+                                    </div>
+                                    <div class="step-detail collapse" id="sarima_step5_detail">
+                                        <div class="row g-2">
+                                            <div class="col-6">
+                                                <div class="stat-label">Ljung-Box Q</div>
+                                                <div class="stat-value" id="sar5_lbq">-</div>
+                                            </div>
+                                            <div class="col-6">
+                                                <div class="stat-label">p-value</div>
+                                                <div class="stat-value" id="sar5_lbpval">-</div>
+                                            </div>
+                                        </div>
+                                        <div class="row g-2 mt-1">
+                                            <div class="col-12">
+                                                <div class="stat-label">Status Residual</div>
+                                                <div class="stat-value" id="sar5_status">-</div>
+                                            </div>
+                                        </div>
+                                        <div class="row g-2 mt-1">
+                                            <div class="col-12">
+                                                <div class="stat-label">Kesimpulan</div>
+                                                <div class="text-secondary" id="sar5_conclusion"
+                                                    style="font-size:0.78rem;"></div>
+                                            </div>
+                                        </div>
+                                        <div class="mini-chart-container" id="sarima_resid_chart_container"
+                                            style="display:none;">
+                                            <canvas id="sarimaResidChart"></canvas>
+                                        </div>
+                                    </div>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="card h-100 shadow-sm border-0 overflow-hidden"
+                        style="border-radius: 12px; box-shadow: 0 4px 15px rgba(245,158,11,0.04) !important; border: 1px solid rgba(245,158,11,0.08) !important;">
+                        <div class="px-4 py-3 d-flex align-items-center justify-content-between text-white"
+                            style="background: linear-gradient(135deg, #f59e0b, #d97706);">
+                            <h5 class="mb-0 fw-700 fs-14 d-flex align-items-center gap-2">
+                                <i class="bi bi-lightning-fill"></i> HOLT-WINTERS
+                            </h5>
+                        </div>
+                        <div class="card-body p-4" style="background-color: #fffdfb;">
+                            <ul class="list-group list-group-flush border-0" id="hwStepsList">
+                                <li class="list-group-item d-flex flex-column px-3 py-2.5 bg-transparent border-0"
+                                    id="hw_step1">
+                                    <div class="d-flex align-items-center justify-content-between w-100">
+                                        <span class="fs-13 text-secondary d-flex align-items-center gap-2">
+                                            <i class="bi bi-circle text-warning fs-11"></i> Identifikasi Model
+                                            (Aditif/Multiplikatif)
+                                        </span>
+                                        <span class="status-icon"><i class="bi bi-dash-circle text-muted"></i></span>
+                                    </div>
+                                    <div class="step-detail collapse" id="hw_step1_detail">
+                                        <div class="row g-2">
+                                            <div class="col-6">
+                                                <div class="stat-label">Tipe Musiman</div>
+                                                <div class="stat-value" id="hw1_type">-</div>
+                                            </div>
+                                            <div class="col-6">
+                                                <div class="stat-label">CV (Koef. Variasi)</div>
+                                                <div class="stat-value" id="hw1_cv">-</div>
+                                            </div>
+                                        </div>
+                                        <div class="row g-2 mt-1">
+                                            <div class="col-12">
+                                                <div class="stat-label">Kesimpulan</div>
+                                                <div class="text-secondary" id="hw1_conclusion"
+                                                    style="font-size:0.78rem;"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </li>
+                                <li class="list-group-item d-flex flex-column px-3 py-2.5 bg-transparent border-0"
+                                    id="hw_step2">
+                                    <div class="d-flex align-items-center justify-content-between w-100">
+                                        <span class="fs-13 text-secondary d-flex align-items-center gap-2">
+                                            <i class="bi bi-circle text-warning fs-11"></i> Penentuan Parameter
+                                        </span>
+                                        <span class="status-icon"><i class="bi bi-dash-circle text-muted"></i></span>
+                                    </div>
+                                    <div class="step-detail collapse" id="hw_step2_detail">
+                                        <div class="row g-2">
+                                            <div class="col-4">
+                                                <div class="stat-label">Alpha (Level)</div>
+                                                <div class="stat-value" id="hw2_alpha">-</div>
+                                            </div>
+                                            <div class="col-4">
+                                                <div class="stat-label">Beta (Trend)</div>
+                                                <div class="stat-value" id="hw2_beta">-</div>
+                                            </div>
+                                            <div class="col-4">
+                                                <div class="stat-label">Gamma (Musiman)</div>
+                                                <div class="stat-value" id="hw2_gamma">-</div>
+                                            </div>
+                                        </div>
+                                        <div class="row g-2 mt-1">
+                                            <div class="col-12">
+                                                <div class="stat-label">Kesimpulan</div>
+                                                <div class="text-secondary" id="hw2_conclusion"
+                                                    style="font-size:0.78rem;"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </li>
+                                <li class="list-group-item d-flex flex-column px-3 py-2.5 bg-transparent border-0"
+                                    id="hw_step3">
+                                    <div class="d-flex align-items-center justify-content-between w-100">
+                                        <span class="fs-13 text-secondary d-flex align-items-center gap-2">
+                                            <i class="bi bi-circle text-warning fs-11"></i> Pemodelan
+                                        </span>
+                                        <span class="status-icon"><i class="bi bi-dash-circle text-muted"></i></span>
+                                    </div>
+                                    <div class="step-detail collapse" id="hw_step3_detail">
+                                        <div class="row g-2">
+                                            <div class="col-4">
+                                                <div class="stat-label">AIC</div>
+                                                <div class="stat-value" id="hw3_aic">-</div>
+                                            </div>
+                                            <div class="col-4">
+                                                <div class="stat-label">BIC</div>
+                                                <div class="stat-value" id="hw3_bic">-</div>
+                                            </div>
+                                            <div class="col-4">
+                                                <div class="stat-label">SSE</div>
+                                                <div class="stat-value" id="hw3_sse">-</div>
+                                            </div>
+                                        </div>
+                                        <div class="row g-2 mt-1">
+                                            <div class="col-12">
+                                                <div class="stat-label">Kesimpulan</div>
+                                                <div class="text-secondary" id="hw3_conclusion"
+                                                    style="font-size:0.78rem;"></div>
+                                            </div>
+                                        </div>
+                                        <div class="mini-chart-container" id="hw_fitted_chart_container"
+                                            style="display:none;">
+                                            <canvas id="hwFittedChart"></canvas>
+                                        </div>
+                                    </div>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="text-center my-3 d-none" id="progressStatusContainer">
+                <h5 class="fw-700 text-primary mb-1" id="loadingStatusText" style="font-size:1.05rem;">Memulai Proses...
+                </h5>
+                <p class="text-muted mb-0" id="loadingSubtext" style="font-size:0.82rem;">Harap tunggu, sistem sedang
+                    memproses analisis peramalan.</p>
+            </div>
+
+            <div class="text-center mt-4 mb-2 d-none" id="btnLanjutEvaluasiContainer">
+                <button id="btnLanjutEvaluasi"
+                    class="btn btn-success btn-lg px-5 py-2.5 fw-semibold d-inline-flex align-items-center gap-2"
+                    style="border-radius:10px; font-size:0.95rem; background: linear-gradient(135deg, #059669, #10b981); border: none; box-shadow: 0 4px 12px rgba(5, 150, 105, 0.25);">
+                    <i class="bi bi-arrow-right-circle-fill fs-5"></i> LANJUT KE EVALUASI
+                </button>
+            </div>
+        </div>
+
+        <!-- ===== STEP 4: EVALUASI ===== -->
+        <div class="step-content" id="stepContent4">
+            <div class="text-center text-muted fw-700 fs-12 mb-4 tracking-wide text-uppercase">
+                <i class="bi bi-arrow-down-circle-fill text-primary me-1"></i> TAHAP 4: EVALUASI MODEL
+            </div>
+
+            <div class="d-none" id="resultsPanel">
+                <div class="d-flex justify-content-end mb-4">
+                    <a href="{{ url_for('evaluasi.index') }}"
+                        class="btn fw-semibold d-inline-flex align-items-center gap-1"
+                        style="border-radius:8px; font-size:0.78rem; padding:0.35rem 0.9rem; background:#f59e0b; color:#fff; border:none;">
+                        <i class="bi bi-arrow-right-circle-fill"></i> Hasil dan Evaluasi
+                    </a>
+                </div>
+
+                <div class="card shadow-sm mb-4"
+                    style="border-radius:16px; border: 1px solid var(--border-card); overflow:hidden;">
+                    <div class="card-header bg-white px-4 pt-4 pb-0 border-0">
+                        <div class="mb-3">
+                            <h2 class="fw-700 mb-0" style="font-size:1rem;color:var(--text-primary);">Grafik Hasil
+                                Peramalan</h2>
+                            <p class="text-muted mb-0" style="font-size:0.75rem;"> Grafik visualisasi model SARIMA dan
+                                Holt-Winters</p>
+                        </div>
+                        <ul class="nav nav-tabs border-0" id="forecastTabs" role="tablist" style="gap:4px;">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active px-3 py-2" id="sarima-tab" data-bs-toggle="tab"
+                                    data-bs-target="#sarimaPane" type="button" role="tab"
+                                    style="font-size:0.83rem;font-weight:500;">
+                                    SARIMA Forecast
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link px-3 py-2" id="hw-tab" data-bs-toggle="tab"
+                                    data-bs-target="#hwPane" type="button" role="tab"
+                                    style="font-size:0.83rem;font-weight:500;">
+                                    Holt-Winters Forecast
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link px-3 py-2" id="compare-tab" data-bs-toggle="tab"
+                                    data-bs-target="#comparePane" type="button" role="tab"
+                                    style="font-size:0.83rem;font-weight:500;">
+                                    Perbandingan Model
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="card-body px-4 pb-4 pt-3">
+                        <div class="tab-content" id="forecastTabsContent">
+                            <div class="tab-pane fade show active" id="sarimaPane" role="tabpanel">
+                                <div style="position: relative; height:380px; width:100%">
+                                    <canvas id="sarimaChart"></canvas>
+                                </div>
+                                <div id="narasiSarimaContainer" class="mt-3 p-3 rounded-3 d-none"
+                                     style="background:rgba(220,38,38,0.05);border-left:4px solid #dc2626;">
+                                    <p class="mb-0" id="narasiSarimaText" style="font-size:0.82rem;line-height:1.6;color:var(--text-primary);text-align:justify;"></p>
+                                </div>
+                            </div>
+                            <div class="tab-pane fade" id="hwPane" role="tabpanel">
+                                <div style="position: relative; height:380px; width:100%">
+                                    <canvas id="hwChart"></canvas>
+                                </div>
+                                <div id="narasiHwContainer" class="mt-3 p-3 rounded-3 d-none"
+                                     style="background:rgba(245,158,11,0.05);border-left:4px solid #f59e0b;">
+                                    <p class="mb-0" id="narasiHwText" style="font-size:0.82rem;line-height:1.6;color:var(--text-primary);text-align:justify;"></p>
+                                </div>
+                            </div>
+                            <div class="tab-pane fade" id="comparePane" role="tabpanel">
+                                <div style="position: relative; height:380px; width:100%">
+                                    <canvas id="comparisonChart"></canvas>
+                                </div>
+                                <div id="narasiCompareContainer" class="mt-3 p-3 rounded-3 d-none"
+                                     style="background:rgba(6,72,147,0.05);border-left:4px solid #064893;">
+                                    <p class="mb-0" id="narasiCompareText" style="font-size:0.82rem;line-height:1.6;color:var(--text-primary);text-align:justify;"></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Perbandingan Akurasi Model -->
+                <div class="card shadow-sm mb-4" id="accuracyCard"
+                    style="border-radius:16px; border:1px solid var(--border-card); overflow:hidden;">
+                    <div class="card-header bg-white px-4 pt-4 pb-2 border-0">
+                        <h5 class="fw-700 mb-0" style="font-size:1rem;color:var(--text-primary);">
+                            <i class="bi bi-shield-check text-primary me-1"></i> Perbandingan Akurasi Model
+                        </h5>
+                        <p class="text-muted mb-0" style="font-size:0.75rem;">Metrik evaluasi model berdasarkan data
+                            testing (MAE, RMSE, MAPE)</p>
+                    </div>
+                    <div class="card-body px-4 pb-4 pt-2">
+                        <div class="row g-4 align-items-start">
+                            <div class="col-lg-7">
+                                <div class="table-responsive">
+                                    <table class="table table-hover align-middle">
+                                        <thead>
+                                            <tr>
+                                                <th>Metrik</th>
+                                                <th class="text-center" style="width:28%;">SARIMA (Auto)</th>
+                                                <th class="text-center" style="width:28%;">Holt-Winters</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td><span class="fw-600 text-secondary">MAE</span> (Mean Absolute Error)
+                                                </td>
+                                                <td class="text-center font-monospace" id="evalMaeSarima">-</td>
+                                                <td class="text-center font-monospace" id="evalMaeHw">-</td>
+                                            </tr>
+                                            <tr>
+                                                <td><span class="fw-600 text-secondary">RMSE</span> (Root Mean Squared
+                                                    Error)</td>
+                                                <td class="text-center font-monospace" id="evalRmseSarima">-</td>
+                                                <td class="text-center font-monospace" id="evalRmseHw">-</td>
+                                            </tr>
+                                            <tr>
+                                                <td><strong class="text-primary">MAPE</strong> (Mean Absolute Percentage
+                                                    Error)</td>
+                                                <td class="text-center fw-bold text-primary" id="evalMapeSarima">-</td>
+                                                <td class="text-center fw-bold text-primary" id="evalMapeHw">-</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="col-lg-5">
+                                <div class="p-4 h-100 d-flex flex-column justify-content-center" id="bestModelCard"
+                                    style="border-radius:14px;">
+                                    <div class="d-flex align-items-center gap-3 mb-3">
+                                        <i class="bi fs-2" id="bestModelIcon"></i>
+                                        <div>
+                                            <div class="fw-800 mb-0" style="font-size:1rem;" id="bestModelTitle">-</div>
+                                            <div style="font-size:0.75rem;opacity:0.8;" id="bestModelSubtitle">
+                                                Berdasarkan nilai MAPE terkecil</div>
+                                        </div>
+                                    </div>
+                                    <div class="d-flex align-items-baseline gap-2 mb-3">
+                                        <span style="font-size:2.5rem;font-weight:900;line-height:1;"
+                                            id="bestModelMapeValue">-</span>
+                                        <span class="badge px-3 py-2 rounded-pill fw-700"
+                                            style="font-size:0.78rem; color:#fff;" id="bestModelMapeBadge">-</span>
+                                    </div>
+                                    <p style="font-size:0.8rem;color:#374151;line-height:1.55;margin-bottom:0;"
+                                        id="bestModelDesc">-</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- MAPE Category Reference -->
+                        <div class="mt-4 p-3 rounded-3" style="background:#f8fafc;border:1px solid #e2e8f0;">
+                            <p class="fw-600 mb-2 text-secondary"
+                                style="font-size:0.78rem;letter-spacing:0.04em;text-transform:uppercase;">Referensi
+                                Kategori Akurasi MAPE</p>
+                            <div class="d-flex flex-wrap gap-2">
+                                <span class="badge rounded-pill px-3 py-2"
+                                    style="background:rgba(22,163,74,0.12);color:#16a34a;font-size:0.75rem;font-weight:600;">
+                                    <i class="bi bi-patch-check-fill me-1"></i> &lt; 10% — Sangat Akurat
+                                </span>
+                                <span class="badge rounded-pill px-3 py-2"
+                                    style="background:rgba(27,42,140,0.10);color:#1b2a8c;font-size:0.75rem;font-weight:600;">
+                                    <i class="bi bi-award-fill me-1"></i> 10%–20% — Baik
+                                </span>
+                                <span class="badge rounded-pill px-3 py-2"
+                                    style="background:rgba(245,158,11,0.12);color:#b45309;font-size:0.75rem;font-weight:600;">
+                                    <i class="bi bi-exclamation-circle-fill me-1"></i> 20%–50% — Cukup
+                                </span>
+                                <span class="badge rounded-pill px-3 py-2"
+                                    style="background:rgba(220,38,38,0.10);color:#dc2626;font-size:0.75rem;font-weight:600;">
+                                    <i class="bi bi-x-circle-fill me-1"></i> &gt; 50% — Tidak Akurat
+                                </span>
+                            </div>
+                        </div>
+                        <p class="mb-0 mt-2 text-secondary" style="font-size:0.78rem;line-height:1.5;">
+                            <strong>MAE &amp; RMSE:</strong> Semakin kecil nilainya (mendekati 0), semakin rendah kesalahan prediksi. Model dengan MAE dan RMSE lebih kecil menandakan akurasi dan presisi yang lebih baik.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="text-center py-5" id="evaluasiPlaceholder">
+                <div class="run-panel-icon mx-auto">
+                    <i class="bi bi-bar-chart-line-fill"></i>
+                </div>
+                <h5 class="fw-700 text-muted mt-3">Belum Ada Hasil Evaluasi</h5>
+                <p class="text-muted" style="font-size:0.85rem;">Jalankan proses peramalan pada Tahap 3 untuk melihat
+                    hasil evaluasi model.</p>
+                <button id="btnGoToStep3" class="btn btn-primary px-4 py-2 fw-semibold" style="border-radius:10px;">
+                    <i class="bi bi-arrow-left me-1"></i> Mulai Peramalan
+                </button>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- Parameter Modal -->
+<div class="modal fade" id="parameterModal" tabindex="-1" aria-labelledby="parameterModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content"
+            style="border-radius: 16px; border: none; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.15);">
+            <div
+                class="modal-header px-4 py-3 bg-light border-bottom border-light d-flex align-items-center justify-content-between">
+                <h5 class="modal-title fw-800 text-secondary d-flex align-items-center gap-2" id="parameterModalLabel"
+                    style="font-size: 1.05rem;">
+                    <i class="bi bi-gear-wide-connected text-primary"></i> Parameter Model Aktif Saat Ini
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4 bg-white">
+                <div class="alert alert-info border-0 p-3 mb-4 d-flex align-items-center gap-3"
+                    style="border-radius: 12px; background-color: #f0f5ff; color: #1e3a8a;">
+                    <i class="bi bi-info-circle-fill fs-4 text-primary"></i>
+                    <div>
+                        <span class="d-block fw-700 fs-13">Dataset Latih Terakhir</span>
+                        <small class="fs-12 text-secondary" id="datasetInfoText">Mengambil data...</small>
+                    </div>
+                </div>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="card h-100 border-0 shadow-none p-3"
+                            style="background-color:#f8fafc; border-radius:12px; border:1px solid #f1f5f9 !important;">
+                            <div class="d-flex align-items-center gap-2 mb-3">
+                                <span class="d-flex align-items-center justify-content-center text-white"
+                                    style="width:26px; height:26px; border-radius:6px; background-color:#1b2a8c; font-size:0.8rem;">S</span>
+                                <h6 class="fw-800 mb-0 text-primary" style="font-size:0.9rem;">Model SARIMA</h6>
+                            </div>
+                            <div class="mb-3">
+                                <label class="text-muted fs-11 text-uppercase fw-600 d-block mb-1">Parameter
+                                    Ordo</label>
+                                <span class="fw-700 fs-14 text-dark" id="modalSarimaOrder">-</span>
+                            </div>
+                            <div class="border-top pt-2">
+                                <label class="text-muted fs-11 text-uppercase fw-600 d-block mb-2">Metrik Akurasi (Data
+                                    Uji)</label>
+                                <div class="row g-2 text-center">
+                                    <div class="col-4">
+                                        <div class="bg-white p-2 rounded border"
+                                            style="border-color:#e2e8f0 !important;">
+                                            <span class="d-block text-muted" style="font-size:0.68rem;">MAPE</span>
+                                            <strong class="fs-12 text-secondary" id="modalSarimaMape">-</strong>
+                                        </div>
+                                    </div>
+                                    <div class="col-4">
+                                        <div class="bg-white p-2 rounded border"
+                                            style="border-color:#e2e8f0 !important;">
+                                            <span class="d-block text-muted" style="font-size:0.68rem;">RMSE</span>
+                                            <strong class="fs-12 text-secondary" id="modalSarimaRmse">-</strong>
+                                        </div>
+                                    </div>
+                                    <div class="col-4">
+                                        <div class="bg-white p-2 rounded border"
+                                            style="border-color:#e2e8f0 !important;">
+                                            <span class="d-block text-muted" style="font-size:0.68rem;">MAE</span>
+                                            <strong class="fs-12 text-secondary" id="modalSarimaMae">-</strong>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card h-100 border-0 shadow-none p-3"
+                            style="background-color:#fffbeb; border-radius:12px; border:1px solid #fef3c7 !important;">
+                            <div class="d-flex align-items-center gap-2 mb-3">
+                                <span class="d-flex align-items-center justify-content-center text-white"
+                                    style="width:26px; height:26px; border-radius:6px; background-color:#f59e0b; font-size:0.8rem;">HW</span>
+                                <h6 class="fw-800 mb-0 text-warning"
+                                    style="font-size:0.9rem; color:#d97706 !important;">Model Holt-Winters</h6>
+                            </div>
+                            <div class="row g-2 mb-3">
+                                <div class="col-4">
+                                    <label class="text-muted fs-10 text-uppercase fw-600 d-block">Alpha (α)</label>
+                                    <span class="fw-700 fs-13 text-dark" id="modalHwAlpha">-</span>
+                                </div>
+                                <div class="col-4">
+                                    <label class="text-muted fs-10 text-uppercase fw-600 d-block">Beta (β)</label>
+                                    <span class="fw-700 fs-13 text-dark" id="modalHwBeta">-</span>
+                                </div>
+                                <div class="col-4">
+                                    <label class="text-muted fs-10 text-uppercase fw-600 d-block">Gamma (γ)</label>
+                                    <span class="fw-700 fs-13 text-dark" id="modalHwGamma">-</span>
+                                </div>
+                            </div>
+                            <div class="border-top pt-2">
+                                <label class="text-muted fs-11 text-uppercase fw-600 d-block mb-2">Metrik Akurasi (Data
+                                    Uji)</label>
+                                <div class="row g-2 text-center">
+                                    <div class="col-4">
+                                        <div class="bg-white p-2 rounded border"
+                                            style="border-color:#fef3c7 !important;">
+                                            <span class="d-block text-muted" style="font-size:0.68rem;">MAPE</span>
+                                            <strong class="fs-12 text-secondary" id="modalHwMape">-</strong>
+                                        </div>
+                                    </div>
+                                    <div class="col-4">
+                                        <div class="bg-white p-2 rounded border"
+                                            style="border-color:#fef3c7 !important;">
+                                            <span class="d-block text-muted" style="font-size:0.68rem;">RMSE</span>
+                                            <strong class="fs-12 text-secondary" id="modalHwRmse">-</strong>
+                                        </div>
+                                    </div>
+                                    <div class="col-4">
+                                        <div class="bg-white p-2 rounded border"
+                                            style="border-color:#fef3c7 !important;">
+                                            <span class="d-block text-muted" style="font-size:0.68rem;">MAE</span>
+                                            <strong class="fs-12 text-secondary" id="modalHwMae">-</strong>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer px-4 py-3 bg-light border-top border-light">
+                <button type="button" class="btn btn-secondary px-4 py-2" data-bs-dismiss="modal"
+                    style="border-radius:10px; font-size:0.85rem; font-weight:600;">Tutup</button>
+                <button type="button" id="btnTriggerModalRun" class="btn btn-warning px-4 py-2 text-white"
+                    style="border-radius:10px; font-size:0.85rem; font-weight:600; background: linear-gradient(135deg,#f59e0b,#d97706); border:none;">
+                    <i class="bi bi-arrow-repeat"></i> Latih Ulang Model
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const stepItems = document.querySelectorAll('.step-item');
+        const stepContents = {
+            1: document.getElementById('stepContent1'),
+            2: document.getElementById('stepContent2'),
+            3: document.getElementById('stepContent3'),
+            4: document.getElementById('stepContent4')
+        };
+        const stepCircles = {
+            1: document.getElementById('step1'),
+            2: document.getElementById('step2'),
+            3: document.getElementById('step3'),
+            4: document.getElementById('step4')
+        };
+        const stepLabels = {
+            1: document.getElementById('step1Label'),
+            2: document.getElementById('step2Label'),
+            3: document.getElementById('step3Label'),
+            4: document.getElementById('step4Label')
+        };
+        const progressBar = document.getElementById('stepperProgressBar');
+
+        const btnStart = document.getElementById('btnStartForecast');
+        const btnGoToStep3 = document.getElementById('btnGoToStep3');
+        const btnOpenParams = document.getElementById('btnOpenParams');
+        const btnTriggerModalRun = document.getElementById('btnTriggerModalRun');
+        const btnLanjutEvaluasi = document.getElementById('btnLanjutEvaluasi');
+        const btnLanjutEvaluasiContainer = document.getElementById('btnLanjutEvaluasiContainer');
+
+        const resultsPanel = document.getElementById('resultsPanel');
+        const evaluasiPlaceholder = document.getElementById('evaluasiPlaceholder');
+        const progressStatusContainer = document.getElementById('progressStatusContainer');
+        const loadingStatusText = document.getElementById('loadingStatusText');
+        const loadingSubtext = document.getElementById('loadingSubtext');
+
+        const preprocessingLoading = document.getElementById('preprocessingLoading');
+        const preprocessingError = document.getElementById('preprocessingError');
+        const preprocessingErrorText = document.getElementById('preprocessingErrorText');
+        const preprocessingContent = document.getElementById('preprocessingContent');
+        const datasetInfoPreprocessing = document.getElementById('datasetInfoPreprocessing');
+        const statCardsContainer = document.getElementById('statCardsContainer');
+        const statsDetailTable = document.getElementById('statsDetailTable');
+
+        const splitContent = document.getElementById('splitContent');
+        const splitReady = document.getElementById('splitReady');
+        const trainCount = document.getElementById('trainCount');
+        const testCount = document.getElementById('testCount');
+        const trainBar = document.getElementById('trainBar');
+        const testBar = document.getElementById('testBar');
+
+        const parameterModal = new bootstrap.Modal(document.getElementById('parameterModal'));
+        const datasetInfoText = document.getElementById('datasetInfoText');
+        const modalSarimaOrder = document.getElementById('modalSarimaOrder');
+        const modalSarimaMape = document.getElementById('modalSarimaMape');
+        const modalSarimaRmse = document.getElementById('modalSarimaRmse');
+        const modalSarimaMae = document.getElementById('modalSarimaMae');
+        const modalHwAlpha = document.getElementById('modalHwAlpha');
+        const modalHwBeta = document.getElementById('modalHwBeta');
+        const modalHwGamma = document.getElementById('modalHwGamma');
+        const modalHwMape = document.getElementById('modalHwMape');
+        const modalHwRmse = document.getElementById('modalHwRmse');
+        const modalHwMae = document.getElementById('modalHwMae');
+
+        let chartData = null;
+        let animationIntervals = [];
+        let edaChartInstances = {};
+        let currentStep = 1;
+
+        function activateStep(step) {
+            Object.keys(stepContents).forEach(function (key) {
+                var s = parseInt(key);
+                var circle = stepCircles[s];
+                var label = stepLabels[s];
+                var content = stepContents[s];
+
+                if (s === step) {
+                    stepItems[s - 1].classList.add('active');
+                    content.classList.add('active');
+                    if (circle.innerHTML.indexOf('check') === -1) {
+                        circle.classList.add('active');
+                    }
+                    label.classList.add('active');
+                } else {
+                    stepItems[s - 1].classList.remove('active');
+                    content.classList.remove('active');
+                    if (circle.innerHTML.indexOf('check') === -1) {
+                        circle.classList.remove('active');
+                    }
+                    label.classList.remove('active');
+                }
+            });
+
+            currentStep = step;
+            var progress = ((step - 1) / 3) * 100;
+            progressBar.style.width = progress + '%';
+
+            if (step === 1) {
+                loadPreprocessingData();
+            } else if (step === 2) {
+                loadSplitData();
+            }
+        }
+
+        stepItems.forEach(function (item, index) {
+            var step = index + 1;
+            item.addEventListener('click', function () {
+                if (step === 4 && resultsPanel.classList.contains('d-none')) {
+                    return;
+                }
+                activateStep(step);
+            });
+        });
+
+        function formatNumber(num) {
+            if (num === null || num === undefined) return '-';
+            return Number(num).toLocaleString('id-ID', { maximumFractionDigits: 2 });
+        }
+
+        function formatInt(num) {
+            if (num === null || num === undefined) return '-';
+            return Number(num).toLocaleString('id-ID', { maximumFractionDigits: 0 });
+        }
+
+        function loadPreprocessingData() {
+            preprocessingLoading.classList.remove('d-none');
+            preprocessingError.classList.add('d-none');
+            preprocessingContent.classList.add('d-none');
+
+            fetch("{{ url_for('peramalan.get_preprocessing_data') }}")
+                .then(function (response) {
+                    if (!response.ok) {
+                        throw new Error('Belum ada data distribusi. Silakan unggah data terlebih dahulu.');
+                    }
+                    return response.json();
+                })
+                .then(function (res) {
+                    var data = res.data;
+                    preprocessingLoading.classList.add('d-none');
+                    preprocessingContent.classList.remove('d-none');
+
+                    datasetInfoPreprocessing.textContent = 'Total ' + data.total_records + ' observasi bulanan (' + data.date_range.start + ' s.d. ' + data.date_range.end + ')';
+
+                    var stats = data.stats;
+                    var cards = [
+                        { label: 'Total Observasi', value: formatInt(stats.count), unit: 'bulan', icon: 'bi-calendar3', color: 'info' },
+                        { label: 'Rata-rata (Mean)', value: formatInt(stats.mean), unit: 'kg', icon: 'bi-calculator-fill', color: 'primary' },
+                        { label: 'Volume Minimum', value: formatNumber(stats.min), unit: 'kg', icon: 'bi-arrow-down-circle-fill', color: 'danger' },
+                        { label: 'Volume Maksimum', value: formatNumber(stats.max), unit: 'kg', icon: 'bi-arrow-up-circle-fill', color: 'success' }
+                    ];
+
+                    var cardsHtml = '';
+                    cards.forEach(function (c) {
+                        cardsHtml += '<div class="col-6 col-lg-3">'
+                            + '<div class="stat-card-modern">'
+                            + '<div class="card-top">'
+                            + '<div class="icon-box icon-box-' + c.color + '">'
+                            + '<i class="bi ' + c.icon + '"></i>'
+                            + '</div></div>'
+                            + '<div class="card-label">' + c.label + '</div>'
+                            + '<div class="card-value">' + c.value + ' <small style="font-size:0.75rem;font-weight:500;color:var(--text-muted);">' + c.unit + '</small></div>'
+                            + '</div></div>';
+                    });
+                    statCardsContainer.innerHTML = cardsHtml;
+
+
+
+                    var q1 = stats.q1;
+                    var q3 = stats.q3;
+                    var iqr = q3 - q1;
+                    var lowerBound = q1 - 1.5 * iqr;
+                    var upperBound = q3 + 1.5 * iqr;
+                    var outlierCount = data.boxplot.outliers ? data.boxplot.outliers.length : 0;
+
+                    var outlierHtml = '';
+                    if (outlierCount > 0) {
+                        data.boxplot.outliers.forEach(function (o) {
+                            outlierHtml += '<span class="badge rounded-pill" style="background:rgba(227,27,35,0.1);color:var(--accent);font-size:0.72rem;">' + formatInt(o) + ' kg</span> ';
+                        });
+                    } else {
+                        outlierHtml = '<span class="badge rounded-pill" style="background:rgba(16,185,129,0.1);color:#047857;font-size:0.72rem;"><i class="bi bi-check-circle me-1"></i>Tidak Ada Outlier</span>';
+                    }
+
+                    statsDetailTable.innerHTML = '<tr>'
+                        + '<th class="text-muted fw-500" style="width:55%;border:none;padding:0.6rem 0.75rem;background:#f8fafc;border-radius:6px 0 0 6px;">Standar Deviasi</th>'
+                        + '<td style="border:none;padding:0.6rem 0.75rem;font-weight:600;">' + formatInt(stats.std) + ' kg</td></tr>'
+                        + '<tr><th class="text-muted fw-500" style="border:none;padding:0.6rem 0.75rem;background:#f8fafc;border-radius:6px 0 0 6px;">Median (Q2)</th>'
+                        + '<td style="border:none;padding:0.6rem 0.75rem;font-weight:600;">' + formatInt(stats.median) + ' kg</td></tr>'
+                        + '<tr><th class="text-muted fw-500" style="border:none;padding:0.6rem 0.75rem;background:#f8fafc;border-radius:6px 0 0 6px;">Kurtosis</th>'
+                        + '<td style="border:none;padding:0.6rem 0.75rem;font-weight:600;">' + formatInt(stats.kurtosis) + '</td></tr>'
+                        + '<tr><th class="text-muted fw-500" style="border:none;padding:0.6rem 0.75rem;background:#f8fafc;border-radius:6px 0 0 6px;">Skewness</th>'
+                        + '<td style="border:none;padding:0.6rem 0.75rem;font-weight:600;">' + formatInt(stats.skewness) + '</td></tr>'
+                        + '<tr><th class="text-muted fw-500" style="border:none;padding:0.6rem 0.75rem;background:#f8fafc;border-radius:6px 0 0 6px;">Batas Outlier Atas</th>'
+                        + '<td style="border:none;padding:0.6rem 0.75rem;font-weight:600;">' + formatInt(upperBound) + ' kg</td></tr>'
+                        + '<tr><th class="text-muted fw-500" style="border:none;padding:0.6rem 0.75rem;background:#f8fafc;border-radius:6px 0 0 6px;">Batas Outlier Bawah</th>'
+                        + '<td style="border:none;padding:0.6rem 0.75rem;font-weight:600;">' + formatInt(lowerBound) + ' kg</td></tr>'
+                        + '<tr><th class="text-muted fw-500" style="border:none;padding:0.6rem 0.75rem;background:#f8fafc;border-radius:6px 0 0 6px;">Outliers Terdeteksi</th>'
+                        + '<td style="border:none;padding:0.6rem 0.75rem;">' + outlierHtml + '</td></tr>';
+
+                    Object.keys(edaChartInstances).forEach(function (key) {
+                        if (edaChartInstances[key]) {
+                            if (typeof edaChartInstances[key].destroy === 'function') {
+                                edaChartInstances[key].destroy();
+                            } else if (typeof edaChartInstances[key] === 'object') {
+                                Object.values(edaChartInstances[key]).forEach(function (c) { if (c && c.destroy) c.destroy(); });
+                            }
+                        }
+                    });
+                    edaChartInstances = {};
+
+                    edaChartInstances.ts = renderTimeSeriesChart('tsChart', data.labels, data.values);
+                    window._preprocessData = data;
+
+                    var narasiValidasiContainer = document.getElementById('narasiValidasiContainer');
+                    var narasiValidasiText = document.getElementById('narasiValidasiText');
+                    if (data.narasi_validasi) {
+                        narasiValidasiText.innerHTML = data.narasi_validasi;
+                        narasiValidasiContainer.classList.remove('d-none');
+                    }
+
+                    var boxplotTab = document.getElementById('boxplot-tab');
+                    var oldBoxHandler = boxplotTab._boxHandler;
+                    if (oldBoxHandler) {
+                        boxplotTab.removeEventListener('shown.bs.tab', oldBoxHandler);
+                    }
+                    var boxHandler = function () {
+                        edaChartInstances.boxplot = renderBoxplot('boxplotChart', window._preprocessData.boxplot);
+                        var narasiBoxplotContainer = document.getElementById('narasiBoxplotContainer');
+                        var narasiBoxplotText = document.getElementById('narasiBoxplotText');
+                        if (data.narasi_boxplot) {
+                            narasiBoxplotText.innerHTML = data.narasi_boxplot;
+                            narasiBoxplotContainer.classList.remove('d-none');
+                        }
+                        boxplotTab.removeEventListener('shown.bs.tab', boxHandler);
+                    };
+                    boxplotTab._boxHandler = boxHandler;
+                    boxplotTab.addEventListener('shown.bs.tab', boxHandler, { once: true });
+
+                    var decompTab = document.getElementById('decomp-tab');
+                    var oldDecompHandler = decompTab._decompHandler;
+                    if (oldDecompHandler) {
+                        decompTab.removeEventListener('shown.bs.tab', oldDecompHandler);
+                    }
+                    var decompHandler = function () {
+                        edaChartInstances.decomp = renderDecompositionCharts(
+                            'trendChart', 'seasonalChart', 'residualChart',
+                            window._preprocessData.labels, window._preprocessData.decomp
+                        );
+                        var narasiDecompContainer = document.getElementById('narasiDecompContainer');
+                        var narasiDecompText = document.getElementById('narasiDecompText');
+                        if (data.narasi_decomp) {
+                            narasiDecompText.innerHTML = data.narasi_decomp;
+                            narasiDecompContainer.classList.remove('d-none');
+                        }
+                    };
+                    decompTab._decompHandler = decompHandler;
+                    decompTab.addEventListener('shown.bs.tab', decompHandler, { once: true });
+                })
+                .catch(function (err) {
+                    preprocessingLoading.classList.add('d-none');
+                    preprocessingError.classList.remove('d-none');
+                    preprocessingErrorText.textContent = err.message || 'Gagal memuat data preprocessing.';
+                });
+        }
+
+        function loadSplitData() {
+            splitContent.classList.remove('d-none');
+            splitReady.classList.add('d-none');
+
+            fetch("{{ url_for('peramalan.get_preprocessing_data') }}")
+                .then(function (response) { return response.json(); })
+                .then(function (res) {
+                    var total = res.data.total_records;
+                    var trainSize = Math.round(total * 0.70);
+                    var testSize = total - trainSize;
+
+                    splitContent.classList.add('d-none');
+                    splitReady.classList.remove('d-none');
+
+                    trainCount.textContent = trainSize;
+                    testCount.textContent = testSize;
+                    trainBar.style.width = '70%';
+                    trainBar.textContent = '70% (' + trainSize + ' bulan)';
+                    testBar.style.width = '30%';
+                    testBar.textContent = '30% (' + testSize + ' bulan)';
+                })
+                .catch(function (err) {
+                    splitContent.innerHTML = '<div class="text-center py-4">'
+                        + '<i class="bi bi-exclamation-triangle-fill text-warning" style="font-size: 2rem;"></i>'
+                        + '<p class="text-muted mt-2">Data belum tersedia. Silakan unggah data distribusi terlebih dahulu.</p></div>';
+                });
+        }
+
+        // --- Mini chart helpers (shared scope) ---
+        var stepChartInstances = {};
+
+        function renderMiniLineChart(canvasId, labels, values, color, fillColor) {
+            var canvas = document.getElementById(canvasId);
+            if (!canvas) return;
+            var ctx = canvas.getContext('2d');
+            if (stepChartInstances[canvasId]) { stepChartInstances[canvasId].destroy(); }
+            stepChartInstances[canvasId] = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: values,
+                        borderColor: color || '#1b2a8c',
+                        backgroundColor: fillColor || 'rgba(27,42,140,0.08)',
+                        borderWidth: 1.5, pointRadius: 0, tension: 0.2, fill: true
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false }, tooltip: { enabled: false } },
+                    scales: { x: { display: false }, y: { display: false } }
+                }
+            });
+        }
+
+        function renderBarChart(canvasId, labels, values, color) {
+            var canvas = document.getElementById(canvasId);
+            if (!canvas) return;
+            var ctx = canvas.getContext('2d');
+            if (stepChartInstances[canvasId]) { stepChartInstances[canvasId].destroy(); }
+            stepChartInstances[canvasId] = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{ data: values, backgroundColor: color || 'rgba(27,42,140,0.5)', borderColor: color || '#1b2a8c', borderWidth: 1 }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false }, tooltip: { enabled: false } },
+                    scales: { x: { display: false }, y: { display: false } }
+                }
+            });
+        }
+
+        function renderScatterChart(canvasId, labels, values, color) {
+            var canvas = document.getElementById(canvasId);
+            if (!canvas) return;
+            var ctx = canvas.getContext('2d');
+            if (stepChartInstances[canvasId]) { stepChartInstances[canvasId].destroy(); }
+            var scatterData = labels.map(function (l, i) { return { x: i, y: values[i] }; });
+            stepChartInstances[canvasId] = new Chart(ctx, {
+                type: 'scatter',
+                data: { datasets: [{ data: scatterData, backgroundColor: color || 'rgba(27,42,140,0.5)', pointRadius: 2 }] },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false }, tooltip: { enabled: false } },
+                    scales: { x: { display: false }, y: { display: false } }
+                }
+            });
+        }
+
+        function renderAcfPacfChart(canvasId, values, color) {
+            var canvas = document.getElementById(canvasId);
+            if (!canvas) return;
+            var ctx = canvas.getContext('2d');
+            if (stepChartInstances[canvasId]) { stepChartInstances[canvasId].destroy(); }
+            var labels = values.map(function (_, i) { return 'Lag ' + i; });
+            stepChartInstances[canvasId] = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: values,
+                        backgroundColor: values.map(function (v) { return v < 0 ? 'rgba(220,38,38,0.4)' : (color || 'rgba(27,42,140,0.5)'); }),
+                        borderColor: values.map(function (v) { return v < 0 ? '#dc2626' : (color || '#1b2a8c'); }),
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false }, tooltip: { enabled: false } },
+                    scales: { x: { display: false }, y: { display: false } }
+                }
+            });
+        }
+
+        function resetUI() {
+            animationIntervals.forEach(function (id) { clearInterval(id); });
+            animationIntervals = [];
+
+            progressBar.style.width = '0%';
+            [stepCircles[1], stepCircles[2], stepCircles[3], stepCircles[4]].forEach(function (el) {
+                el.className = 'step-circle mx-auto';
+                el.innerHTML = el.id.replace('step', '');
+            });
+            [stepLabels[1], stepLabels[2], stepLabels[3], stepLabels[4]].forEach(function (el) {
+                el.className = 'step-label mt-2 fw-600 fs-13 text-secondary';
+            });
+
+            document.querySelectorAll('#sarimaStepsList li, #hwStepsList li').forEach(function (el) {
+                el.className = 'list-group-item d-flex flex-column px-3 py-2.5 bg-transparent border-0';
+                var icon = el.querySelector('.status-icon');
+                if (icon) icon.innerHTML = '<i class="bi bi-dash-circle text-muted"></i>';
+                var detail = el.querySelector('.step-detail');
+                if (detail) detail.classList.remove('show');
+            });
+
+            // Reset mini charts
+            Object.keys(stepChartInstances).forEach(function (k) {
+                if (stepChartInstances[k]) stepChartInstances[k].destroy();
+            });
+            stepChartInstances = {};
+            document.querySelectorAll('.mini-chart-container').forEach(function (c) { c.style.display = 'none'; });
+            document.getElementById('sar4_coeff_table_wrapper').style.display = 'none';
+
+            progressStatusContainer.classList.add('d-none');
+            resultsPanel.classList.add('d-none');
+            evaluasiPlaceholder.classList.remove('d-none');
+            btnLanjutEvaluasiContainer.classList.add('d-none');
+            btnStart.disabled = false;
+            btnStart.innerHTML = '<i class="bi bi-play-fill fs-5"></i> MULAI PELATIHAN MODEL';
+        }
+
+        btnOpenParams.addEventListener('click', function () {
+            btnOpenParams.disabled = true;
+            fetch("{{ url_for('peramalan.get_parameters') }}")
+                .then(function (response) {
+                    btnOpenParams.disabled = false;
+                    if (!response.ok) {
+                        throw new Error('Belum ada data parameter latih model.');
+                    }
+                    return response.json();
+                })
+                .then(function (res) {
+                    var data = res.data;
+                    datasetInfoText.textContent = 'Jumlah data: ' + data.dataset_info.count + ' observasi bulanan (Data terakhir: ' + data.dataset_info.last_date + ')';
+
+                    var sarima = data.auto_sarima;
+                    modalSarimaOrder.textContent = 'SARIMA(' + sarima.order.join(',') + ')(' + sarima.seasonal_order.join(',') + ')';
+                    modalSarimaMape.textContent = sarima.mape.toFixed(2) + '%';
+                    modalSarimaRmse.textContent = formatNumber(sarima.rmse);
+                    modalSarimaMae.textContent = formatNumber(sarima.mae);
+
+                    var hw = data.auto_holt_winters;
+                    modalHwAlpha.textContent = hw.alpha != null ? hw.alpha.toFixed(4) : 'Auto';
+                    modalHwBeta.textContent = hw.beta != null ? hw.beta.toFixed(4) : 'Auto';
+                    modalHwGamma.textContent = hw.gamma != null ? hw.gamma.toFixed(4) : 'Auto';
+                    modalHwMape.textContent = hw.mape.toFixed(2) + '%';
+                    modalHwRmse.textContent = formatNumber(hw.rmse);
+                    modalHwMae.textContent = formatNumber(hw.mae);
+
+                    parameterModal.show();
+                })
+                .catch(function (err) {
+                    btnOpenParams.disabled = false;
+                    alert(err.message || 'Gagal memuat parameter');
+                });
+        });
+
+        btnTriggerModalRun.addEventListener('click', function () {
+            parameterModal.hide();
+            activateStep(3);
+            setTimeout(function () { btnStart.click(); }, 300);
+        });
+
+        btnLanjutEvaluasi.addEventListener('click', function () {
+            activateStep(4);
+            document.getElementById('stepContent4').scrollIntoView({ behavior: 'smooth', block: 'start' });
+            resultsPanel.classList.remove('d-none');
+            evaluasiPlaceholder.classList.add('d-none');
+
+            if (chartData) {
+                renderForecastChart(
+                    'sarimaChart',
+                    chartData.labels_historical,
+                    chartData.values_historical,
+                    chartData.labels_future,
+                    chartData.pred_future_sarima,
+                    'SARIMA',
+                    'rgba(27, 42, 140, 1)',
+                    chartData.labels_test,
+                    chartData.values_test,
+                    chartData.pred_test_sarima
+                );
+                var narasiSarimaContainer = document.getElementById('narasiSarimaContainer');
+                var narasiSarimaText = document.getElementById('narasiSarimaText');
+                if (chartData.narrative_sarima) {
+                    narasiSarimaText.innerHTML = chartData.narrative_sarima;
+                    narasiSarimaContainer.classList.remove('d-none');
+                }
+
+                var hwTab = document.getElementById('hw-tab');
+                hwTab.addEventListener('shown.bs.tab', function () {
+                    renderForecastChart(
+                        'hwChart',
+                        chartData.labels_historical,
+                        chartData.values_historical,
+                        chartData.labels_future,
+                        chartData.pred_future_hw,
+                        'Holt-Winters',
+                        'rgba(245, 158, 11, 1)',
+                        chartData.labels_test,
+                        chartData.values_test,
+                        chartData.pred_test_hw
+                    );
+                    var narasiHwContainer = document.getElementById('narasiHwContainer');
+                    var narasiHwText = document.getElementById('narasiHwText');
+                    if (chartData.narrative_hw) {
+                        narasiHwText.innerHTML = chartData.narrative_hw;
+                        narasiHwContainer.classList.remove('d-none');
+                    }
+                }, { once: true });
+
+                var compareTab = document.getElementById('compare-tab');
+                compareTab.addEventListener('shown.bs.tab', function () {
+                    renderForecastComparison(
+                        'comparisonChart',
+                        chartData.labels_historical,
+                        chartData.values_historical,
+                        chartData.labels_test,
+                        chartData.values_test,
+                        chartData.pred_test_sarima,
+                        chartData.pred_test_hw,
+                        chartData.labels_future,
+                        chartData.pred_future_sarima,
+                        chartData.pred_future_hw
+                    );
+                    var narasiCompareContainer = document.getElementById('narasiCompareContainer');
+                    var narasiCompareText = document.getElementById('narasiCompareText');
+                    if (chartData.narrative_comparison) {
+                        narasiCompareText.innerHTML = chartData.narrative_comparison;
+                        narasiCompareContainer.classList.remove('d-none');
+                    }
+                }, { once: true });
+            }
+        });
+
+        btnGoToStep3.addEventListener('click', function () {
+            activateStep(3);
+        });
+
+        btnStart.addEventListener('click', function () {
+            resetUI();
+            activateStep(3);
+
+            btnStart.disabled = true;
+            btnStart.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status"></span> Sedang Memproses...';
+            progressStatusContainer.classList.remove('d-none');
+
+            stepCircles[1].classList.add('active', 'pulse-animation');
+            stepLabels[1].classList.add('active');
+            loadingStatusText.textContent = "Mengambil data distribusi dari database...";
+            loadingSubtext.textContent = "Mengumpulkan seluruh observasi bulanan.";
+
+            function delay(ms) {
+                return new Promise(function (resolve) {
+                    var id = setTimeout(resolve, ms);
+                    animationIntervals.push(id);
+                });
+            }
+
+            var fetchPromise = fetch("{{ url_for('peramalan.run') }}", {
+                method: "POST",
+                headers: {
+                    "X-CSRFToken": "{{ csrf_token() }}",
+                    "Content-Type": "application/json"
+                }
+            });
+
+            // --- Populate SARIMA step details ---
+            function populateSarimaStep(stepNum, data) {
+                var fn = 'populate_sarima_' + stepNum;
+                if (window[fn]) window[fn](data);
+            }
+
+            window.populate_sarima_1 = function (d) {
+                var setText = function (id, val) { var el = document.getElementById(id); if (el) el.textContent = val; };
+                setText('sar1_adf', d.adf_statistic != null ? d.adf_statistic.toFixed(4) : '-');
+                setText('sar1_pval', d.p_value != null ? d.p_value.toFixed(4) : '-');
+                if (d.is_stationary != null) {
+                    var badge = d.is_stationary
+                        ? '<span class="badge bg-success badge-pill-sm">Stasioner</span>'
+                        : '<span class="badge bg-danger badge-pill-sm">Tidak Stasioner</span>';
+                    document.getElementById('sar1_status').innerHTML = badge;
+                }
+                setText('sar1_conclusion', d.conclusion || '');
+            };
+
+            window.populate_sarima_2 = function (d) {
+                var setText = function (id, val) { var el = document.getElementById(id); if (el) el.textContent = val; };
+                setText('sar2_d', d.d != null ? 'd = ' + d.d : '-');
+                setText('sar2_D', d.D != null ? 'D = ' + d.D : '-');
+                setText('sar2_s', d.s != null ? 's = ' + d.s : '-');
+                setText('sar2_conclusion', d.conclusion || '');
+                if (d.differenced_data && d.differenced_data.length > 0 && d.labels && d.labels.length > 0) {
+                    document.getElementById('sarima_diff_chart_container').style.display = '';
+                    renderMiniLineChart('sarimaDiffChart', d.labels, d.differenced_data, '#16a34a', 'rgba(22,163,74,0.08)');
+                }
+            };
+
+            window.populate_sarima_3 = function (d) {
+                var setText = function (id, val) { var el = document.getElementById(id); if (el) el.textContent = val; };
+                setText('sar3_order', d.order ? '(' + d.order.join(',') + ')' : '-');
+                setText('sar3_seasonal', d.seasonal_order ? '(' + d.seasonal_order.join(',') + ')' : '-');
+                setText('sar3_conclusion', d.conclusion || '');
+                if (d.acf_values && d.acf_values.length > 0) {
+                    renderAcfPacfChart('sarimaAcfChart', d.acf_values, '#1b2a8c');
+                }
+                if (d.pacf_values && d.pacf_values.length > 0) {
+                    renderAcfPacfChart('sarimaPacfChart', d.pacf_values, '#dc2626');
+                }
+            };
+
+            window.populate_sarima_4 = function (d) {
+                var setText = function (id, val) { var el = document.getElementById(id); if (el) el.textContent = val; };
+                setText('sar4_order', d.order ? '(' + d.order.join(',') + ')' : '-');
+                setText('sar4_seasonal', d.seasonal_order ? '(' + d.seasonal_order.join(',') + ')' : '-');
+                setText('sar4_aic', d.aic != null ? d.aic.toFixed(2) : '-');
+                setText('sar4_bic', d.bic != null ? d.bic.toFixed(2) : '-');
+                setText('sar4_conclusion', d.conclusion || '');
+                var hasCoeffs = (d.ar_params && d.ar_params.length > 0)
+                    || (d.ma_params && d.ma_params.length > 0)
+                    || (d.sar_params && d.sar_params.length > 0)
+                    || (d.sma_params && d.sma_params.length > 0);
+                if (hasCoeffs) {
+                    document.getElementById('sar4_coeff_table_wrapper').style.display = '';
+                    var tbody = document.querySelector('#sar4_coeff_table tbody');
+                    tbody.innerHTML = '';
+                    var addRow = function (name, vals, pvals) {
+                        if (vals && vals.length > 0) {
+                            vals.forEach(function (v, i) {
+                                var tr = '<tr><td>' + name + (vals.length > 1 ? '[' + (i + 1) + ']' : '') + '</td>'
+                                    + '<td>' + v.toFixed(6) + '</td>'
+                                    + '<td>' + (pvals && pvals[i] != null ? pvals[i].toFixed(4) : '-') + '</td></tr>';
+                                tbody.innerHTML += tr;
+                            });
+                        }
+                    };
+                    addRow('AR', d.ar_params, d.ar_pvalues);
+                    addRow('MA', d.ma_params, d.ma_pvalues);
+                    addRow('SAR', d.sar_params, d.sar_pvalues);
+                    addRow('SMA', d.sma_params, d.sma_pvalues);
+                }
+            };
+
+            window.populate_sarima_5 = function (d) {
+                var setText = function (id, val) { var el = document.getElementById(id); if (el) el.textContent = val; };
+                setText('sar5_lbq', d.ljung_box_stat != null ? d.ljung_box_stat.toFixed(4) : '-');
+                setText('sar5_lbpval', d.ljung_box_pvalue != null ? d.ljung_box_pvalue.toFixed(4) : '-');
+                if (d.is_residual_white_noise != null) {
+                    var badge = d.is_residual_white_noise
+                        ? '<span class="badge bg-success badge-pill-sm">White Noise</span>'
+                        : '<span class="badge bg-warning text-dark badge-pill-sm">Tidak White Noise</span>';
+                    document.getElementById('sar5_status').innerHTML = badge;
+                }
+                setText('sar5_conclusion', d.conclusion || '');
+                if (d.residuals && d.residuals.length > 0 && d.residual_labels && d.residual_labels.length > 0) {
+                    document.getElementById('sarima_resid_chart_container').style.display = '';
+                    renderScatterChart('sarimaResidChart', d.residual_labels, d.residuals, '#64748b');
+                }
+            };
+
+            // --- Populate HW step details ---
+            function populateHwStep(stepNum, data) {
+                var fn = 'populate_hw_' + stepNum;
+                if (window[fn]) window[fn](data);
+            }
+
+            window.populate_hw_1 = function (d) {
+                var setText = function (id, val) { var el = document.getElementById(id); if (el) el.textContent = val; };
+                if (d.seasonal_type) {
+                    var badge = d.seasonal_type === 'mul'
+                        ? '<span class="badge bg-warning text-dark badge-pill-sm">Multiplikatif</span>'
+                        : '<span class="badge bg-info badge-pill-sm">Aditif</span>';
+                    document.getElementById('hw1_type').innerHTML = badge;
+                }
+                setText('hw1_cv', d.cv != null ? d.cv.toFixed(6) : '-');
+                setText('hw1_conclusion', d.conclusion || '');
+            };
+
+            window.populate_hw_2 = function (d) {
+                var setText = function (id, val) { var el = document.getElementById(id); if (el) el.textContent = val; };
+                setText('hw2_alpha', d.alpha != null ? d.alpha.toFixed(4) : '-');
+                setText('hw2_beta', d.beta != null ? d.beta.toFixed(4) : '-');
+                setText('hw2_gamma', d.gamma != null ? d.gamma.toFixed(4) : '-');
+                setText('hw2_conclusion', d.conclusion || '');
+            };
+
+            window.populate_hw_3 = function (d) {
+                var setText = function (id, val) { var el = document.getElementById(id); if (el) el.textContent = val; };
+                setText('hw3_aic', d.aic != null ? d.aic.toFixed(2) : '-');
+                setText('hw3_bic', d.bic != null ? d.bic.toFixed(2) : '-');
+                setText('hw3_sse', d.sse != null ? d.sse.toFixed(2) : '-');
+                setText('hw3_conclusion', d.conclusion || '');
+                if (d.labels && d.labels.length > 0 && d.fitted_values && d.fitted_values.length > 0 && d.actual_values && d.actual_values.length > 0) {
+                    document.getElementById('hw_fitted_chart_container').style.display = '';
+                    var canvas = document.getElementById('hwFittedChart');
+                    if (canvas) {
+                        var ctx = canvas.getContext('2d');
+                        if (stepChartInstances['hwFittedChart']) stepChartInstances['hwFittedChart'].destroy();
+                        stepChartInstances['hwFittedChart'] = new Chart(ctx, {
+                            type: 'line',
+                            data: {
+                                labels: d.labels,
+                                datasets: [
+                                    { label: 'Aktual', data: d.actual_values, borderColor: '#1b2a8c', backgroundColor: 'rgba(27,42,140,0.05)', borderWidth: 1.5, pointRadius: 0, tension: 0.2, fill: true },
+                                    { label: 'Fitted', data: d.fitted_values, borderColor: '#16a34a', backgroundColor: 'transparent', borderWidth: 1.5, pointRadius: 0, tension: 0.2, borderDash: [4, 2] }
+                                ]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: { legend: { display: false }, tooltip: { enabled: false } },
+                                scales: { x: { display: false }, y: { display: false } }
+                            }
+                        });
+                    }
+                }
+            };
+
+            // --- Main animate + populate flow ---
+            async function animateSteps() {
+                await delay(1000);
+                loadingStatusText.textContent = "Melakukan preprocessing & data cleaning...";
+                loadingSubtext.textContent = "Membersihkan data pencatatan dan mengisi nilai kosong.";
+
+                await delay(1000);
+                stepCircles[1].classList.remove('active', 'pulse-animation');
+                stepCircles[1].classList.add('completed');
+                stepCircles[1].innerHTML = '<i class="bi bi-check-lg text-white"></i>';
+                progressBar.style.width = '33%';
+
+                stepCircles[2].classList.add('active', 'pulse-animation');
+                stepLabels[2].classList.add('active');
+                loadingStatusText.textContent = "Melakukan split data (70% Train / 30% Test)...";
+                loadingSubtext.textContent = "Membagi dataset menjadi 70% data latih dan 30% data uji.";
+
+                await delay(1500);
+                stepCircles[2].classList.remove('active', 'pulse-animation');
+                stepCircles[2].classList.add('completed');
+                stepCircles[2].innerHTML = '<i class="bi bi-check-lg text-white"></i>';
+                progressBar.style.width = '66%';
+
+                stepCircles[3].classList.add('active', 'pulse-animation');
+                stepLabels[3].classList.add('active');
+                loadingStatusText.textContent = "Menjalankan Implementasi Model Peramalan...";
+                loadingSubtext.textContent = "Melatih model SARIMA dan Holt-Winters secara berdampingan.";
+            }
+
+            async function populateStepDetails(sd) {
+                var sarimaSteps = ['sarima_step1', 'sarima_step2', 'sarima_step3', 'sarima_step4', 'sarima_step5'];
+                var hwSteps = ['hw_step1', 'hw_step2', 'hw_step3'];
+
+                // Process SARIMA steps (1-5)
+                for (var i = 0; i < sarimaSteps.length; i++) {
+                    var s = sarimaSteps[i];
+                    var li = document.getElementById(s);
+                    var stepData = sd.sarima && sd.sarima['step' + (i + 1)] ? sd.sarima['step' + (i + 1)] : {};
+                    li.classList.add('active-item');
+                    li.querySelector('.status-icon').innerHTML = '<div class="spinner-border spinner-border-sm text-primary" role="status"></div>';
+                    // Populate the detail panel
+                    populateSarimaStep(i + 1, stepData);
+                    await delay(500);
+                    li.classList.remove('active-item');
+                    li.classList.add('done-item');
+                    li.querySelector('.status-icon').innerHTML = '<i class="bi bi-check-circle-fill text-success fs-6"></i>';
+                    // Auto-expand detail
+                    var detail = li.querySelector('.step-detail');
+                    if (detail) detail.classList.add('show');
+                }
+
+                // Process HW steps (1-3)
+                for (var j = 0; j < hwSteps.length; j++) {
+                    var h = hwSteps[j];
+                    var liHw = document.getElementById(h);
+                    var stepDataHw = sd.hw && sd.hw['step' + (j + 1)] ? sd.hw['step' + (j + 1)] : {};
+                    liHw.classList.add('active-item-hw');
+                    liHw.querySelector('.status-icon').innerHTML = '<div class="spinner-border spinner-border-sm text-warning" role="status"></div>';
+                    populateHwStep(j + 1, stepDataHw);
+                    await delay(500);
+                    liHw.classList.remove('active-item-hw');
+                    liHw.classList.add('done-item');
+                    liHw.querySelector('.status-icon').innerHTML = '<i class="bi bi-check-circle-fill text-success fs-6"></i>';
+                    var detailHw = liHw.querySelector('.step-detail');
+                    if (detailHw) detailHw.classList.add('show');
+                }
+            }
+
+            var animatePromise = animateSteps();
+
+            Promise.all([animatePromise, fetchPromise])
+                .then(function (results) {
+                    var response = results[1];
+                    if (!response.ok) {
+                        return response.json().then(function (err) { throw new Error(err.message || 'Gagal menjalankan peramalan'); });
+                    }
+                    return response.json();
+                })
+                .then(function (res) {
+                    chartData = res.data;
+                    console.log('API response data keys:', Object.keys(chartData));
+                    console.log('Has step_details:', 'step_details' in chartData);
+
+                    // Populate step details with real data
+                    if (chartData.step_details) {
+                        return populateStepDetails(chartData.step_details).then(function () {
+                            btnLanjutEvaluasiContainer.classList.remove('d-none');
+                            return res;
+                        });
+                    } else {
+                        console.error('step_details tidak ditemukan dalam response!');
+                        return Promise.resolve(res);
+                    }
+                })
+                .then(function (res) {
+                    chartData = res.data;
+
+                    stepCircles[3].classList.remove('active', 'pulse-animation');
+                    stepCircles[3].classList.add('completed');
+                    stepCircles[3].innerHTML = '<i class="bi bi-check-lg text-white"></i>';
+                    progressBar.style.width = '100%';
+
+                    stepCircles[4].classList.add('completed');
+                    stepCircles[4].innerHTML = '<i class="bi bi-check-lg text-white"></i>';
+                    stepLabels[4].className = 'step-label mt-2 fw-600 fs-13 text-secondary';
+
+                    progressStatusContainer.classList.add('d-none');
+                    btnStart.disabled = false;
+                    btnStart.innerHTML = '<i class="bi bi-play-fill fs-5"></i> MULAI PELATIHAN MODEL';
+
+                    var metrics = chartData.metrics;
+
+                    // Populate accuracy comparison card
+                    document.getElementById('evalMaeSarima').textContent = metrics.sarima.mae.toLocaleString('id-ID', { maximumFractionDigits: 0 }) + ' kg';
+                    document.getElementById('evalMaeHw').textContent = metrics.hw.mae.toLocaleString('id-ID', { maximumFractionDigits: 0 }) + ' kg';
+                    document.getElementById('evalRmseSarima').textContent = metrics.sarima.rmse.toLocaleString('id-ID', { maximumFractionDigits: 0 }) + ' kg';
+                    document.getElementById('evalRmseHw').textContent = metrics.hw.rmse.toLocaleString('id-ID', { maximumFractionDigits: 0 }) + ' kg';
+                    document.getElementById('evalMapeSarima').textContent = metrics.sarima.mape.toFixed(2) + '%';
+                    document.getElementById('evalMapeHw').textContent = metrics.hw.mape.toFixed(2) + '%';
+
+                    // Determine best MAPE category
+                    var bestMape = metrics.model_terbaik === 'SARIMA' ? metrics.sarima.mape : metrics.hw.mape;
+                    var mapeKat, mapeColor, mapeBg, mapeIcon, mapeIconCls;
+                    if (bestMape < 10) {
+                        mapeKat = 'Sangat Akurat';
+                        mapeColor = '#16a34a';
+                        mapeBg = 'linear-gradient(135deg,#f0fdf4,#dcfce7)';
+                        mapeIcon = 'bi-patch-check-fill';
+                        mapeIconCls = 'text-success';
+                    } else if (bestMape < 20) {
+                        mapeKat = 'Baik';
+                        mapeColor = '#0d6efd';
+                        mapeBg = 'linear-gradient(135deg,#eff6ff,#dbeafe)';
+                        mapeIcon = 'bi-award-fill';
+                        mapeIconCls = 'text-primary';
+                    } else if (bestMape < 50) {
+                        mapeKat = 'Cukup';
+                        mapeColor = '#d97706';
+                        mapeBg = 'linear-gradient(135deg,#fffbeb,#fef3c7)';
+                        mapeIcon = 'bi-exclamation-circle-fill';
+                        mapeIconCls = 'text-warning';
+                    } else {
+                        mapeKat = 'Tidak Akurat';
+                        mapeColor = '#dc2626';
+                        mapeBg = 'linear-gradient(135deg,#fff5f5,#fee2e2)';
+                        mapeIcon = 'bi-x-circle-fill';
+                        mapeIconCls = 'text-danger';
+                    }
+
+                    var bestCard = document.getElementById('bestModelCard');
+                    bestCard.style.background = mapeBg;
+                    document.getElementById('bestModelIcon').className = 'bi fs-2 ' + mapeIcon + ' ' + mapeIconCls;
+                    document.getElementById('bestModelTitle').textContent = 'Model Terbaik: ' + metrics.model_terbaik;
+                    document.getElementById('bestModelTitle').style.color = mapeColor;
+                    document.getElementById('bestModelSubtitle').style.color = mapeColor;
+                    document.getElementById('bestModelMapeValue').innerHTML = bestMape.toFixed(2) + '<span style="font-size:1.2rem;">%</span>';
+                    document.getElementById('bestModelMapeValue').style.color = mapeColor;
+                    document.getElementById('bestModelMapeBadge').textContent = mapeKat;
+                    document.getElementById('bestModelMapeBadge').style.background = mapeColor;
+                    document.getElementById('bestModelDesc').innerHTML = 'Model <strong>' + metrics.model_terbaik + '</strong> memiliki nilai MAPE sebesar <strong>' + bestMape.toFixed(2) + '%</strong>, yang tergolong kategori <strong style="color:' + mapeColor + ';">' + mapeKat + '</strong> berdasarkan standar kriteria akurasi peramalan time series.';
+
+                    document.getElementById('accuracyCard').style.display = '';
+                })
+                .catch(function (error) {
+                    resetUI();
+                    alert(error.message);
+                });
+        });
+
+        activateStep(1);
+    });
+</script>
+{% endblock %}

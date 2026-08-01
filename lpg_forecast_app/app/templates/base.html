@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Sistem Peramalan LPG{% endblock %}</title>
+    <meta name="description"
+        content="Sistem Informasi Peramalan Distribusi LPG — SPPBE PT Polly Jasa Persada Indramayu">
+    <!-- Bootstrap 5 CDN -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+    <!-- Custom Style -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% block extra_css %}{% endblock %}
+</head>
+
+<body class="{% block body_class %}{% endblock %}">
+
+    {% if current_user.is_authenticated %}
+    <!-- Mobile sidebar overlay -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <div class="app-wrapper">
+        <!-- ======= SIDEBAR ======= -->
+        <aside class="sidebar" id="sidebar">
+            <!-- Brand / Logo at top of sidebar -->
+            <div class="sidebar-brand">
+                <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Logo PollyCast"
+                    class="brand-logo">
+            </div>
+
+            <span class="sidebar-section-label">MENU UTAMA</span>
+            <ul class="nav nav-pills flex-column mb-2" style="gap:2px;">
+                <li class="nav-item">
+                    <a href="{{ url_for('dashboard.index') }}"
+                        class="nav-link {% if request.endpoint == 'dashboard.index' %}active{% endif %}">
+                        <i class="bi bi-speedometer2"></i>
+                        Dashboard
+                    </a>
+                </li>
+                {% if current_user.role == 'kabag_operasional' %}
+                <span class="sidebar-section-label mt-2">OPERASIONAL</span>
+                <li class="nav-item">
+                    <a href="{{ url_for('distribusi.index') }}"
+                        class="nav-link {% if request.endpoint == 'distribusi.index' %}active{% endif %}">
+                        <i class="bi bi-table"></i>
+                        Data Distribusi
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="{{ url_for('peramalan.index') }}"
+                        class="nav-link {% if request.endpoint == 'peramalan.index' %}active{% endif %}">
+                        <i class="bi bi-graph-up-arrow"></i>
+                        Analisis Peramalan
+                    </a>
+                </li>
+                {% endif %}
+                <span class="sidebar-section-label mt-2">LAPORAN</span>
+                <li class="nav-item">
+                    <a href="{{ url_for('evaluasi.index') }}"
+                        class="nav-link {% if request.endpoint == 'evaluasi.index' %}active{% endif %}">
+                        <i class="bi bi-bar-chart-line"></i>
+                        Hasil &amp; Evaluasi
+                    </a>
+                </li>
+                {% if current_user.role == 'manager' %}
+                <li class="nav-item">
+                    <a href="{{ url_for('riwayat.index') }}"
+                        class="nav-link {% if request.endpoint == 'riwayat.index' %}active{% endif %}">
+                        <i class="bi bi-clock-history"></i>
+                        Riwayat Peramalan
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+
+            <!-- Sidebar Footer -->
+            <div class="sidebar-footer">
+                @ 2026 | PT Polly Jasa Persada | Indramayu
+            </div>
+
+        </aside>
+
+        <!-- ======= CONTENT WRAPPER ======= -->
+        <div class="content-wrapper">
+            <!-- ======= NAVBAR ======= -->
+            <header class="app-navbar">
+                <div class="d-flex align-items-center gap-3">
+                    <!-- Mobile toggle -->
+                    <button class="btn btn-sm d-lg-none navbar-toggle" type="button"
+                        onclick="document.getElementById('sidebar').classList.toggle('show')">
+                        <i class="bi bi-list fs-5"></i>
+                    </button>
+                    <!-- Breadcrumbs -->
+                    <div class="navbar-breadcrumbs">
+                        <span class="breadcrumb-item text-muted">LPG Forecast</span>
+                        <span class="breadcrumb-separator">/</span>
+                        <span class="breadcrumb-item active">
+                            {% if request.endpoint == 'dashboard.index' %}Dashboard
+                            {% elif request.endpoint == 'distribusi.index' %}Data Distribusi
+                            {% elif request.endpoint == 'peramalan.index' %}Analisis Peramalan
+                            {% elif request.endpoint == 'evaluasi.index' %}Hasil &amp; Evaluasi
+                            {% elif request.endpoint == 'riwayat.index' %}Riwayat Peramalan
+                            {% else %}Sistem
+                            {% endif %}
+                        </span>
+                    </div>
+                </div>
+
+                <div class="navbar-actions d-flex align-items-center gap-3">
+                    <!-- Notification -->
+                    <button class="btn-icon-only position-relative" title="Notifikasi">
+                        <i class="bi bi-bell"></i>
+                        <span class="notification-badge"></span>
+                    </button>
+                    <!-- User Avatar Dropdown -->
+                    <div class="dropdown">
+                        <a href="#" class="d-flex align-items-center text-decoration-none" data-bs-toggle="dropdown"
+                            aria-expanded="false">
+                            <div class="avatar-circle-sm">{{ current_user.username[0]|upper }}</div>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end mt-2" style="min-width:180px;">
+                            <li>
+                                <div class="px-3 py-2 border-bottom mb-1">
+                                    <div class="fw-600 fs-13">{{ current_user.username }}</div>
+                                    <div class="fs-12 text-muted">{{ current_user.role | replace('_', ' ') | title }}
+                                    </div>
+                                </div>
+                            </li>
+                            <li>
+                                <a class="dropdown-item text-danger" href="{{ url_for('auth.logout') }}">
+                                    <i class="bi bi-box-arrow-right me-2"></i> Keluar
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </header>
+
+            <!-- ======= MAIN CONTENT ======= -->
+            <main class="main-content">
+                <div class="container-fluid p-0">
+                    <!-- Flash messages -->
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                    {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show d-flex align-items-center gap-2"
+                        role="alert" style="margin-bottom:1.5rem;">
+                        <i
+                            class="bi {% if category == 'success' %}bi-check-circle-fill{% elif category == 'danger' %}bi-x-circle-fill{% elif category == 'warning' %}bi-exclamation-triangle-fill{% else %}bi-info-circle-fill{% endif %} fs-5"></i>
+                        <div>{{ message }}</div>
+                        <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert"
+                            aria-label="Close"></button>
+                    </div>
+                    {% endfor %}
+                    {% endif %}
+                    {% endwith %}
+
+                    {% block content %}{% endblock %}
+                </div>
+            </main>
+        </div>
+    </div>
+
+    {% else %}
+    {% block main_login %}{% endblock %}
+    {% endif %}
+
+    <!-- Bootstrap Bundle JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+    {% block extra_js %}{% endblock %}
+    <script>
+        (function () {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            const toggleBtn = document.querySelector('[onclick*="sidebar"]');
+
+            function openSidebar() {
+                if (!sidebar) return;
+                sidebar.classList.add('show');
+                if (overlay) overlay.classList.add('active');
+                document.body.style.overflow = 'hidden';
+            }
+
+            function closeSidebar() {
+                if (!sidebar) return;
+                sidebar.classList.remove('show');
+                if (overlay) overlay.classList.remove('active');
+                document.body.style.overflow = '';
+            }
+
+            /* Replace inline onclick with proper handler */
+            if (toggleBtn) {
+                toggleBtn.removeAttribute('onclick');
+                toggleBtn.addEventListener('click', function () {
+                    sidebar.classList.contains('show') ? closeSidebar() : openSidebar();
+                });
+            }
+
+            /* Close sidebar when overlay clicked */
+            if (overlay) {
+                overlay.addEventListener('click', closeSidebar);
+            }
+
+            /* Close sidebar on desktop resize */
+            window.addEventListener('resize', function () {
+                if (window.innerWidth >= 992) {
+                    closeSidebar();
+                }
+            });
+        })();
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,524 @@
+{% extends "base.html" %}
+
+{% block title %}Kelola Data Distribusi - Sistem Peramalan LPG{% endblock %}
+
+{% block content %}
+<!-- Page Greeter -->
+<div class="page-greeter d-flex flex-wrap justify-content-between align-items-start gap-3">
+    <div>
+        <h1 class="page-title">Kelola Data Distribusi LPG</h1>
+        <p class="page-subtitle">Pencatatan dan Manajemen Data Historis Penyaluran LPG</p>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Form Upload -->
+    <div class="col-lg-4 mb-4">
+        <div class="card shadow-sm" style="border-radius:16px; border: 1px solid var(--border-card); overflow:hidden;">
+            <div class="card-header bg-white px-4 pt-4 pb-2 border-0">
+                <h5 class="fw-700 mb-0" style="font-size:1rem;color:var(--text-primary);"><i
+                        class="bi bi-file-earmark-arrow-up text-primary me-1"></i> Import Data Excel</h5>
+            </div>
+            <div class="card-body px-4 pb-4 pt-2">
+                <form action="{{ url_for('distribusi.import_data') }}" method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                    <div class="mb-3">
+                        <label for="excelFile" class="form-label text-secondary fw-600 fs-13">Pilih File Excel (.xlsx /
+                            .xls)</label>
+                        <input class="form-control" type="file" id="excelFile" name="file" accept=".xlsx, .xls" required
+                            style="border-radius:10px;">
+                    </div>
+
+                    <div class="alert alert-info d-flex gap-2 p-3 shadow-none border-0" role="alert"
+                        style="background:#eef2ff; color:#1e293b; border-radius:12px; font-size:0.8rem;">
+                        <i class="bi bi-info-circle-fill text-primary fs-5"></i>
+                        <div>
+                            <strong class="text-primary">Petunjuk Format:</strong>
+                            <ul class="mb-0 ps-3 mt-1" style="line-height: 1.4;">
+                                <li>Kolom 1: <b>Periode</b> (contoh: Jan-2020 atau 2020-01)</li>
+                                <li>Kolom 2: <b>Jumlah Distribusi</b> (kg, berupa angka)</li>
+                                <li>Data yang diimport minimal <b>12 bulan (1 tahun)</b></li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold" style="border-radius: 10px;">
+                        <i class="bi bi-upload"></i> Unggah &amp; Import
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Table Data -->
+    <div class="col-lg-8 mb-4">
+        <div class="card shadow-sm" style="border-radius:16px; border: 1px solid var(--border-card); overflow:hidden;">
+            <div class="card-header bg-white px-4 pt-4 pb-0 border-0">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <h5 class="fw-700 mb-0" style="font-size:1rem;color:var(--text-primary);"><i
+                                class="bi bi-list-stars text-primary me-1"></i> Daftar Data Historis</h5>
+                        <p class="text-muted mb-0" style="font-size:0.75rem;">Detail data distribusi bulanan
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Search Bar -->
+                <div class="d-flex justify-content-end align-items-center mb-3 gap-2 flex-wrap">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge px-3 py-2 fw-semibold rounded-pill" id="totalObservasiBadge"
+                            style="background:#eef2ff; color:#4f46e5; border: 1px solid #c7d2fe; font-size:0.78rem;">
+                            <i class="bi bi-database me-1"></i> {{ data | length }} Total Observasi
+                        </span>
+                        <div class="position-relative">
+                            <i class="bi bi-calendar-range position-absolute top-50 start-0 translate-middle-y ms-3 text-muted"
+                                style="font-size: 0.8rem;"></i>
+                            <select id="yearFilter" class="form-select ps-5 py-2"
+                                style="font-size:0.8rem; border-radius:8px; border:1px solid #e2e8f0; background-color:#f8fafc; width:auto; min-width:120px;">
+                                <option value="">Semua Tahun</option>
+                                {% for year in years %}
+                                <option value="{{ year }}">{{ year }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <button type="button" id="btnDeleteYear" class="btn fw-semibold d-flex align-items-center gap-1"
+                            style="border-radius:8px; font-size:0.8rem; background:#fef2f2; color:#dc2626; border:1px solid #fca5a5; padding:0.4rem 0.9rem; display:none; transition:all 0.15s ease;"
+                            onmouseover="this.style.background='#dc2626'; this.style.color='#fff';"
+                            onmouseout="this.style.background='#fef2f2'; this.style.color='#dc2626';"
+                            title="Hapus seluruh data untuk tahun yang dipilih">
+                            <i class="bi bi-trash"></i> Hapus Tahun
+                        </button>
+                        <div class="position-relative" style="width: 180px;">
+                            <i class="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted"
+                                style="font-size: 0.8rem;"></i>
+                            <input type="text" id="tableSearchInput" class="form-control ps-5 py-2"
+                                placeholder="Cari bulan..."
+                                style="font-size:0.8rem; border-radius:8px; border:1px solid #e2e8f0; background-color:#f8fafc;">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-body px-0 pb-3 pt-0">
+                {% if data %}
+                <div class="table-responsive">
+                    <table class="table align-middle mb-0" id="historisTable"
+                        style="border-collapse: separate; border-spacing: 0;">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="text-center px-3 py-3 fw-semibold text-secondary"
+                                    style="width: 6%; font-size:0.8rem; letter-spacing:0.03em; border-bottom:2px solid #e2e8f0;">
+                                    No</th>
+                                <th class="text-center px-3 py-3 fw-semibold text-secondary"
+                                    style="font-size:0.8rem; letter-spacing:0.03em; border-bottom:2px solid #e2e8f0;">
+                                    Periode</th>
+                                <th class="text-end px-3 py-3 fw-semibold text-secondary"
+                                    style="font-size:0.8rem; letter-spacing:0.03em; border-bottom:2px solid #e2e8f0;">
+                                    Jumlah Distribusi (kg)</th>
+                                <th class="text-center px-3 py-3 fw-semibold text-secondary"
+                                    style="width: 15%; font-size:0.8rem; letter-spacing:0.03em; border-bottom:2px solid #e2e8f0;">
+                                    Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody">
+                            {% for row in data %}
+                            <tr data-periode="{{ row.periode }}" data-jumlah="{{ row.jumlah }}"
+                                style="transition: background 0.15s ease; border-bottom: 1px solid #f1f5f9;">
+                                <td class="text-center px-3 py-3 text-secondary row-index" style="font-size:0.85rem;">{{
+                                    loop.index }}</td>
+                                <td class="text-center px-3 py-3 fw-semibold" style="font-size:0.85rem; color:#1e293b;">
+                                    {{ row.periode }}
+                                </td>
+                                <td class="text-end px-3 py-3 fw-semibold"
+                                    style="font-size:0.85rem; color:#1e293b; font-variant-numeric: tabular-nums;">
+                                    {{ row.jumlah|fmt_id }}
+                                </td>
+                                <td class="text-center px-3 py-3">
+                                    <button type="button" class="btn btn-sm px-3 fw-semibold" data-bs-toggle="modal"
+                                        data-bs-target="#editModal" data-periode="{{ row.periode }}"
+                                        data-jumlah="{{ row.jumlah }}"
+                                        style="border-radius:8px; font-size:0.78rem; background:#eef2ff; color:#4f46e5; border:1px solid #c7d2fe; transition:all 0.15s ease;"
+                                        onmouseover="this.style.background='#4f46e5'; this.style.color='#fff';"
+                                        onmouseout="this.style.background='#eef2ff'; this.style.color='#4f46e5';">
+                                        <i class="bi bi-pencil me-1"></i> Edit
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination controls -->
+                <div class="d-flex justify-content-between align-items-center px-4 mt-3 pt-3 border-top"
+                    id="paginationBar">
+                    <div class="text-muted" style="font-size:0.8rem;">
+                        Menampilkan <span class="fw-semibold text-dark" id="showingStart">0</span>-<span
+                            class="fw-semibold text-dark" id="showingEnd">0</span> dari <span
+                            class="fw-semibold text-dark" id="totalItems">0</span> data
+                        <button id="showAllBtn" class="btn btn-link btn-sm text-decoration-none fw-semibold p-0 ms-1"
+                            style="font-size:0.8rem; color:#6366f1; border:none;">Tampilkan Semua</button>
+                    </div>
+                    <nav aria-label="Page navigation" class="d-flex align-items-center gap-1">
+                        <button class="btn btn-sm px-3 fw-semibold" id="prevPageBtn"
+                            style="border-radius:8px; border:1px solid #e2e8f0; background:#fff; color:#475569; font-size:0.8rem; transition:all 0.15s ease;"
+                            onmouseover="this.style.border='1px solid #cbd5e1'; this.style.background='#f8fafc'"
+                            onmouseout="this.style.border='1px solid #e2e8f0'; this.style.background='#fff'">
+                            <i class="bi bi-chevron-left me-1"></i> Sebelumnya
+                        </button>
+                        <span class="mx-2 text-muted" style="font-size:0.8rem;" id="pageIndicator">Halaman 1</span>
+                        <button class="btn btn-sm btn-primary fw-semibold" id="nextPageBtn"
+                            style="border-radius:8px; border:none; font-size:0.8rem; background:#6366f1; transition:all 0.15s ease;">
+                            Selanjutnya <i class="bi bi-chevron-right ms-1"></i>
+                        </button>
+                    </nav>
+                </div>
+                {% else %}
+                <div class="text-center py-5 text-muted" style="padding: 3rem 1rem !important;">
+                    <div
+                        style="width: 60px; height: 60px; border-radius: 16px; background: #f1f5f9; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 1rem;">
+                        <i class="bi bi-database-slash text-secondary" style="font-size: 1.5rem;"></i>
+                    </div>
+                    <p style="font-size:0.9rem; color:#94a3b8; margin-bottom:0;">Belum ada data historis.</p>
+                    <p style="font-size:0.82rem; color:#b0bcc9;">Silakan unggah file Excel di panel sebelah kiri.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Edit -->
+<div class="modal fade" id="editModal" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content"
+            style="border-radius: 16px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.08);">
+            <div class="modal-header px-4 pt-4 pb-2 border-0">
+                <h5 class="modal-title fw-700" id="editModalLabel" style="color:#1e293b; font-size:1.05rem;">
+                    <i class="bi bi-pencil-square me-1" style="color:#4f46e5;"></i> Edit Data Distribusi
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body px-4 py-3">
+                <div class="mb-3">
+                    <label class="form-label fw-semibold" style="font-size:0.82rem; color:#475569;">
+                        <i class="bi bi-calendar3 me-1"></i> Periode
+                    </label>
+                    <input type="text" id="editPeriodeText" class="form-control" readonly
+                        style="font-size:0.85rem; border-radius:8px; background:#f8fafc; border:1px solid #e2e8f0; padding:0.5rem 0.75rem; color:#64748b;">
+                </div>
+                <div class="mb-2">
+                    <label for="editJumlahInput" class="form-label fw-semibold"
+                        style="font-size:0.82rem; color:#475569;">
+                        <i class="bi bi-box me-1"></i> Jumlah Distribusi (kg)
+                    </label>
+                    <input type="number" step="1" min="0" id="editJumlahInput" class="form-control"
+                        placeholder="Masukkan jumlah distribusi"
+                        style="font-size:0.85rem; border-radius:8px; border:1px solid #e2e8f0; padding:0.5rem 0.75rem;">
+                </div>
+            </div>
+            <div class="modal-footer px-4 pb-4 border-0 gap-2">
+                <button type="button" class="btn btn-light fw-semibold" data-bs-dismiss="modal"
+                    style="border-radius:8px; font-size:0.82rem; padding:0.45rem 1.2rem; border:1px solid #e2e8f0;">
+                    Batal
+                </button>
+                <button type="button" id="btnConfirmEdit" class="btn fw-semibold"
+                    style="border-radius:8px; font-size:0.82rem; padding:0.45rem 1.2rem; background:#4f46e5; color:#fff; border:none;">
+                    <i class="bi bi-check-lg me-1"></i> Simpan
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- SweetAlert2 CDN -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        // AJAX Edit Modal
+        let editPeriode = '';
+        const editModal = document.getElementById('editModal');
+        const editModalObj = new bootstrap.Modal(editModal);
+        const btnConfirmEdit = document.getElementById('btnConfirmEdit');
+
+        editModal.addEventListener('show.bs.modal', function (event) {
+            const button = event.relatedTarget;
+            editPeriode = button.getAttribute('data-periode');
+            const jumlah = button.getAttribute('data-jumlah');
+            editModal.querySelector('#editPeriodeText').value = editPeriode;
+            editModal.querySelector('#editJumlahInput').value = Math.round(parseFloat(jumlah));
+        });
+
+        btnConfirmEdit.addEventListener('click', function () {
+            const jumlahBaru = document.getElementById('editJumlahInput').value;
+            if (!jumlahBaru || parseFloat(jumlahBaru) <= 0) {
+                alert('Jumlah distribusi harus lebih dari 0.');
+                return;
+            }
+
+            const csrfToken = '{{ csrf_token() }}';
+            btnConfirmEdit.disabled = true;
+            btnConfirmEdit.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Menyimpan...';
+
+            fetch("{{ url_for('distribusi.edit_data_ajax', periode='') }}" + editPeriode, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({ jumlah: Math.round(parseFloat(jumlahBaru)) })
+            })
+                .then(function (response) { return response.json(); })
+                .then(function (data) {
+                    if (data.status === 'success') {
+                        editModalObj.hide();
+                        var row = document.querySelector('tr[data-periode="' + editPeriode + '"]');
+                        if (row) {
+                            row.setAttribute('data-jumlah', jumlahBaru);
+                            row.querySelector('td:nth-child(3)').textContent = Math.round(parseFloat(jumlahBaru)).toLocaleString('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+                            var editBtn = row.querySelector('button[data-periode="' + editPeriode + '"]');
+                            if (editBtn) editBtn.setAttribute('data-jumlah', jumlahBaru);
+                        }
+                    } else {
+                        alert(data.message);
+                    }
+                })
+                .catch(function () {
+                    alert('Terjadi kesalahan jaringan.');
+                })
+                .finally(function () {
+                    btnConfirmEdit.disabled = false;
+                    btnConfirmEdit.innerHTML = '<i class="bi bi-check-lg me-1"></i> Simpan';
+                });
+        });
+
+        // Pagination and Search Logic
+        const tableBody = document.getElementById('tableBody');
+        if (tableBody) {
+            var rows = Array.from(tableBody.querySelectorAll('tr'));
+            const searchInput = document.getElementById('tableSearchInput');
+            const yearFilter = document.getElementById('yearFilter');
+            const btnDeleteYear = document.getElementById('btnDeleteYear');
+            const showingStart = document.getElementById('showingStart');
+            const showingEnd = document.getElementById('showingEnd');
+            const totalItems = document.getElementById('totalItems');
+            const totalObservasiBadge = document.getElementById('totalObservasiBadge');
+            const prevPageBtn = document.getElementById('prevPageBtn');
+            const nextPageBtn = document.getElementById('nextPageBtn');
+            const showAllBtn = document.getElementById('showAllBtn');
+            const pageIndicator = document.getElementById('pageIndicator');
+
+            var filteredRows = [...rows];
+            var itemsPerPage = 12;
+            var currentPage = 1;
+
+            function applyFilters() {
+                var query = searchInput.value.toLowerCase().trim();
+                var selectedYear = yearFilter.value;
+
+                filteredRows = rows.filter(function (row) {
+                    var periode = row.getAttribute('data-periode').toLowerCase();
+                    var parts = periode.split('-');
+                    var year = parts[0];
+
+                    var matchYear = selectedYear === '' || year === selectedYear;
+
+                    var monthsIndo = {
+                        "01": "januari", "02": "februari", "03": "maret", "04": "april",
+                        "05": "mei", "06": "juni", "07": "juli", "08": "agustus",
+                        "09": "september", "10": "oktober", "11": "november", "12": "desember"
+                    };
+                    var monthName = "";
+                    if (parts.length === 2 && monthsIndo[parts[1]]) {
+                        monthName = monthsIndo[parts[1]];
+                    }
+
+                    var matchSearch = query === '' || periode.includes(query) || monthName.includes(query);
+                    return matchYear && matchSearch;
+                });
+
+                // Show/hide "Hapus Tahun" button
+                if (selectedYear !== '') {
+                    btnDeleteYear.style.display = 'inline-flex';
+                    btnDeleteYear.innerHTML = '<i class="bi bi-trash me-1"></i> Hapus Tahun ' + selectedYear;
+                } else {
+                    btnDeleteYear.style.display = 'none';
+                }
+
+                currentPage = 1;
+                updateTable();
+            }
+
+            function updateTable() {
+                var total = filteredRows.length;
+                totalItems.textContent = total;
+                totalObservasiBadge.textContent = total + ' Total Observasi';
+
+                if (total === 0) {
+                    tableBody.innerHTML = '<tr><td colspan="4" class="text-center py-5 text-muted" style="font-size:0.9rem;"><i class="bi bi-search me-2" style="font-size:1.2rem;"></i> Data tidak ditemukan</td></tr>';
+                    showingStart.textContent = 0;
+                    showingEnd.textContent = 0;
+                    prevPageBtn.disabled = true;
+                    prevPageBtn.style.opacity = '0.5';
+                    nextPageBtn.disabled = true;
+                    nextPageBtn.style.opacity = '0.5';
+                    pageIndicator.textContent = 'Halaman 0 dari 0';
+                    return;
+                }
+
+                var limit = itemsPerPage || total;
+                var totalPages = Math.ceil(total / limit);
+                if (currentPage > totalPages) currentPage = totalPages;
+                if (currentPage < 1) currentPage = 1;
+
+                var startIdx = (currentPage - 1) * limit;
+                var endIdx = Math.min(startIdx + limit, total);
+
+                tableBody.innerHTML = '';
+                for (var i = startIdx; i < endIdx; i++) {
+                    var row = filteredRows[i];
+                    var idxCell = row.querySelector('.row-index');
+                    if (idxCell) {
+                        idxCell.textContent = i + 1;
+                    }
+                    tableBody.appendChild(row);
+                }
+
+                showingStart.textContent = startIdx + 1;
+                showingEnd.textContent = endIdx;
+
+                pageIndicator.textContent = 'Halaman ' + currentPage + ' dari ' + totalPages;
+
+                if (currentPage === 1 || limit === total) {
+                    prevPageBtn.disabled = true;
+                    prevPageBtn.style.opacity = '0.5';
+                    prevPageBtn.style.cursor = 'not-allowed';
+                } else {
+                    prevPageBtn.disabled = false;
+                    prevPageBtn.style.opacity = '1';
+                    prevPageBtn.style.cursor = 'pointer';
+                }
+
+                if (currentPage === totalPages || limit === total) {
+                    nextPageBtn.disabled = true;
+                    nextPageBtn.style.opacity = '0.5';
+                    nextPageBtn.style.cursor = 'not-allowed';
+                } else {
+                    nextPageBtn.disabled = false;
+                    nextPageBtn.style.opacity = '1';
+                    nextPageBtn.style.cursor = 'pointer';
+                }
+            }
+
+            // Search input
+            searchInput.addEventListener('input', function () {
+                applyFilters();
+            });
+
+            // Year filter
+            yearFilter.addEventListener('change', function () {
+                applyFilters();
+            });
+
+            // Bulk delete year
+            btnDeleteYear.addEventListener('click', function () {
+                var tahun = yearFilter.value;
+                if (!tahun) return;
+
+                Swal.fire({
+                    title: 'Hapus Semua Data Tahun ' + tahun + '?',
+                    text: 'Seluruh data distribusi LPG untuk tahun ' + tahun + ' akan dihapus. Tindakan ini tidak dapat dibatalkan.',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#dc2626',
+                    cancelButtonColor: '#6b7280',
+                    confirmButtonText: 'Ya, Hapus!',
+                    cancelButtonText: 'Batal'
+                }).then(function (result) {
+                    if (result.isConfirmed) {
+                        Swal.fire({
+                            title: 'Menghapus...',
+                            text: 'Sedang menghapus data tahun ' + tahun,
+                            allowOutsideClick: false,
+                            allowEscapeKey: false,
+                            showConfirmButton: false,
+                            didOpen: function () {
+                                Swal.showLoading();
+                            }
+                        });
+
+                        fetch("{{ url_for('distribusi.delete_year') }}", {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': '{{ csrf_token() }}'
+                            },
+                            body: JSON.stringify({ tahun: tahun })
+                        })
+                            .then(function (response) { return response.json(); })
+                            .then(function (data) {
+                                if (data.status === 'success') {
+                                    Swal.fire({
+                                        icon: 'success',
+                                        title: 'Berhasil!',
+                                        text: data.message,
+                                        confirmButtonText: 'OK'
+                                    }).then(function () {
+                                        // Remove rows for that year
+                                        rows = rows.filter(function (row) {
+                                            return row.getAttribute('data-periode').split('-')[0] !== tahun;
+                                        });
+                                        applyFilters();
+                                    });
+                                } else {
+                                    Swal.fire({ icon: 'error', title: 'Gagal!', text: data.message });
+                                }
+                            })
+                            .catch(function () {
+                                Swal.fire({ icon: 'error', title: 'Error!', text: 'Terjadi kesalahan jaringan.' });
+                            });
+                    }
+                });
+            });
+
+            // Page navigation
+            prevPageBtn.addEventListener('click', function () {
+                if (currentPage > 1) {
+                    currentPage--;
+                    updateTable();
+                }
+            });
+
+            nextPageBtn.addEventListener('click', function () {
+                var totalPages = Math.ceil(filteredRows.length / (itemsPerPage || filteredRows.length));
+                if (currentPage < totalPages) {
+                    currentPage++;
+                    updateTable();
+                }
+            });
+
+            // Show all
+            showAllBtn.addEventListener('click', function (e) {
+                e.preventDefault();
+                if (itemsPerPage === 12) {
+                    itemsPerPage = null;
+                    showAllBtn.textContent = 'Tampilkan Lebih Sedikit';
+                } else {
+                    itemsPerPage = 12;
+                    showAllBtn.textContent = 'Tampilkan Semua';
+                }
+                currentPage = 1;
+                updateTable();
+            });
+
+            // Initialize
+            applyFilters();
+        }
+    });
+</script>
+{% endblock %}

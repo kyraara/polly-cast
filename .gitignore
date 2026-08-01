@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.pytest_cache/
+
+# Virtual environment
+venv/
+.venv/
+env/
+
+# Secrets & environment
+.env
+.env.*
+!.env.example
+
+# Flask instance folder (SQLite dev db)
+instance/
+
+# Artefak debugging (cookie sesi, dump HTML)
+backup/
+
+# Dump database: berisi hash password & data distribusi asli
+*.sql
+
+# OS / editor
+Thumbs.db
+.DS_Store
+.idea/
+.vscode/

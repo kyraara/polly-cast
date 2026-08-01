@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}Riwayat Peramalan{% endblock %}
+{% block content %}
+<div class="page-greeter d-flex flex-wrap justify-content-between align-items-center gap-3">
+    <div>
+        <h1 class="page-title">Riwayat Peramalan</h1>
+        <p class="page-subtitle">Daftar riwayat eksekusi peramalan distribusi LPG</p>
+    </div>
+</div>
+
+<div class="card shadow-sm" style="border-radius:16px; border:1px solid var(--border-card); overflow:hidden;">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th class="text-center" style="width:50px;">No</th>
+                        <th>Tanggal Eksekusi</th>
+                        <th>Tahun Proyeksi</th>
+                        <th>MAPE SARIMA</th>
+                        <th>MAPE Holt-Winters</th>
+                        <th class="text-end">Total Proyeksi</th>
+                        <th class="text-center">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if history %}
+                    {% for item in history %}
+                    <tr>
+                        <td class="text-center" style="color:var(--text-muted);">{{ (pagination.page - 1) * 10 + loop.index }}</td>
+                        <td style="color:var(--text-primary);">{{ item.tanggal_evaluasi.strftime('%d-%m-%Y') }}</td>
+                        <td style="color:var(--text-primary);">{{ item.tahun_proyeksi }}</td>
+                        <td class="{{ 'text-danger fw-bold' if item.model_terbaik == 'SARIMA' else '' }} font-monospace">
+                            {{ item.mape_sarima | fmt_id(2) }}%
+                        </td>
+                        <td class="{{ 'text-danger fw-bold' if item.model_terbaik == 'Holt-Winters' else '' }} font-monospace">
+                            {{ item.mape_hw | fmt_id(2) }}%
+                        </td>
+                        <td class="text-end font-monospace fw-bold" style="color:var(--text-primary);">{{ item.total_proyeksi | fmt_id(0) }} kg</td>
+                        <td class="text-center">
+                            <a href="{{ url_for('evaluasi.export_pdf', id_evaluasi=item.id_evaluasi, source='riwayat') }}"
+                                class="btn btn-sm btn-outline-danger px-3" style="border-radius:8px;">
+                                <i class="bi bi-filetype-pdf me-1"></i>Unduh PDF
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center py-4" style="color:var(--text-muted);">
+                            <i class="bi bi-inbox me-2"></i>Belum ada riwayat peramalan.
+                        </td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {% if pagination.pages > 1 %}
+    <div class="px-4 py-3 border-top d-flex flex-wrap justify-content-between align-items-center gap-2"
+        style="border-color:var(--border-card) !important;">
+        <div style="font-size:0.8rem;color:var(--text-muted);">
+            Menampilkan
+            <span class="fw-semibold" style="color:var(--text-primary);">{{ (pagination.page - 1) * pagination.per_page + 1 }}</span>
+            -
+            <span class="fw-semibold" style="color:var(--text-primary);">{{ ((pagination.page - 1) * pagination.per_page + pagination.items|length) }}</span>
+            dari
+            <span class="fw-semibold" style="color:var(--text-primary);">{{ pagination.total }}</span>
+            data
+        </div>
+        <nav aria-label="Page navigation">
+            <ul class="pagination pagination-sm mb-0">
+                <li class="page-item {{ 'disabled' if not pagination.has_prev }}">
+                    <a class="page-link" href="{{ url_for('riwayat.index', page=pagination.prev_num) if pagination.has_prev else '#' }}"
+                        style="border-radius:8px 0 0 8px;{{ 'pointer-events:none;opacity:0.5;' if not pagination.has_prev }}"
+                        {{ 'tabindex=-1' if not pagination.has_prev }}>« Sebelumnya</a>
+                </li>
+
+                {% set start_page = [1, pagination.page - 2]|max %}
+                {% set end_page = [pagination.pages, start_page + 4]|min %}
+                {% set start_page = [1, end_page - 4]|max %}
+
+                {% if start_page > 1 %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('riwayat.index', page=1) }}">1</a>
+                </li>
+                {% if start_page > 2 %}
+                <li class="page-item disabled"><span class="page-link">...</span></li>
+                {% endif %}
+                {% endif %}
+
+                {% for p in range(start_page, end_page + 1) %}
+                <li class="page-item {{ 'active' if p == pagination.page }}">
+                    <a class="page-link" href="{{ url_for('riwayat.index', page=p) }}" style="{{ 'background-color:var(--primary);border-color:var(--primary);' if p == pagination.page }}">{{ p }}</a>
+                </li>
+                {% endfor %}
+
+                {% if end_page < pagination.pages %}
+                {% if end_page < pagination.pages - 1 %}
+                <li class="page-item disabled"><span class="page-link">...</span></li>
+                {% endif %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('riwayat.index', page=pagination.pages) }}">{{ pagination.pages }}</a>
+                </li>
+                {% endif %}
+
+                <li class="page-item {{ 'disabled' if not pagination.has_next }}">
+                    <a class="page-link" href="{{ url_for('riwayat.index', page=pagination.next_num) if pagination.has_next else '#' }}"
+                        style="border-radius:0 8px 8px 0;{{ 'pointer-events:none;opacity:0.5;' if not pagination.has_next }}"
+                        {{ 'tabindex=-1' if not pagination.has_next }}>Selanjutnya »</a>
+                </li>
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

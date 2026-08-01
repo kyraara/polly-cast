@@ -1,0 +1,14 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "lpg-forecast",
+      "runtimeExecutable": "D:\\laragon\\www\\project_sistem_skripsi\\lpg_forecast_app\\venv\\Scripts\\python.exe",
+      "runtimeArgs": [
+        "D:\\laragon\\www\\project_sistem_skripsi\\lpg_forecast_app\\wsgi.py"
+      ],
+      "cwd": "D:\\laragon\\www\\project_sistem_skripsi\\lpg_forecast_app",
+      "port": 5000
+    }
+  ]
+}
