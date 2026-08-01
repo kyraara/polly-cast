@@ -22,8 +22,7 @@ lpg_forecast_app/
 │   └── templates/
 ├── migrations/         Alembic
 ├── tests/
-├── passenger_wsgi.py   entry point cPanel / Passenger
-└── wsgi.py             entry point development
+└── wsgi.py             entry point (development & Passenger)
 docs/                   PRD, arsitektur, rencana implementasi, logbook
 ```
 
@@ -79,8 +78,19 @@ Password ditentukan saat seeding lewat environment variable, tidak disimpan di r
 ## Deployment
 
 Aplikasi ini butuh runtime Python — tidak bisa dijalankan sebagai file statis di
-`public_html`. Di cPanel gunakan **Setup Python App** (Passenger) dan arahkan
-Application Root ke `lpg_forecast_app/`, dengan `passenger_wsgi.py` sebagai entry point.
+`public_html`. Di cPanel gunakan **Setup Python App** (Passenger) dengan pengaturan:
+
+| Field                      | Nilai                        |
+|----------------------------|------------------------------|
+| Application root           | `polly-cast/lpg_forecast_app`|
+| Application startup file   | `wsgi.py`                    |
+| Application entry point    | `app`                        |
+
+Jangan mengisi startup file dengan `passenger_wsgi.py`. cPanel membuat sendiri
+`passenger_wsgi.py` sebagai stub yang memuat startup file; kalau startup file
+diisi `passenger_wsgi.py`, stub itu memuat dirinya sendiri dan gagal dengan
+`RecursionError`. File `passenger_wsgi.py` di app root dikelola cPanel — jangan
+diedit atau dimasukkan ke repo, karena akan ditimpa.
 
 Di server wajib:
 
