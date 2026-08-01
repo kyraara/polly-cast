@@ -1,6 +1,6 @@
-from app.services.auth_service import AuthService
-from app.services.distribusi_service import DistribusiService
-from app.services.eda_service import EDAService
-from app.services.forecast_service import ForecastService
-from app.services.evaluation_service import EvaluationService
-from app.services.report_service import ReportService
+# Sengaja dikosongkan.
+#
+# Sebelumnya file ini mengimpor seluruh service. Akibatnya sekadar memanggil
+# AuthService ikut menarik pandas, pmdarima, statsmodels, dan matplotlib,
+# sehingga waktu boot membengkak. Impor tiap service dari modulnya langsung,
+# misalnya: from app.services.auth_service import AuthService
