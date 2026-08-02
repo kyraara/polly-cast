@@ -1,7 +1,7 @@
 {
     "dataset_info": {
-        "count": 72,
-        "last_date": "2025-12-01"
+        "count": 24,
+        "last_date": "2021-12-01"
     },
     "auto_sarima": {
         "model_type": "SARIMA",
@@ -11,24 +11,24 @@
             0
         ],
         "seasonal_order": [
-            0,
             1,
+            0,
             0,
             12
         ],
-        "mae": 28140.000000000044,
-        "rmse": 32703.620749156864,
-        "mape": 2.337630550812003,
+        "mae": 2656.25,
+        "rmse": 4068.5051769661054,
+        "mape": 0.24155440956433882,
         "model_file": "auto_sarima_model.joblib"
     },
     "auto_holt_winters": {
         "model_type": "Holt-Winters Exponential Smoothing",
-        "alpha": 0.7770465738266757,
+        "alpha": 0.0,
         "beta": 0.0,
         "gamma": 0.0,
-        "mae": 60916.902418418016,
-        "rmse": 70499.20003549596,
-        "mape": 5.165532984453176,
+        "mae": 2656.25,
+        "rmse": 4068.5051769661054,
+        "mape": 0.24155440956433882,
         "model_file": "auto_hwes_model.joblib"
     }
 }

@@ -203,6 +203,12 @@ def export_pdf():
         else:
             download_name = f"laporan_peramalan_{eval_run.tanggal_evaluasi.strftime('%Y%m%d_%H%M%S')}.pdf"
 
+        # Passenger memasang wsgi.file_wrapper yang memanggil fileno() pada
+        # objek respons. pdf_buffer adalah BytesIO dan tidak punya file
+        # descriptor, sehingga unduhan gagal dengan UnsupportedOperation.
+        # Dibuang agar Werkzeug memakai pembungkus miliknya sendiri.
+        request.environ.pop('wsgi.file_wrapper', None)
+
         return send_file(
             pdf_buffer,
             as_attachment=True,
