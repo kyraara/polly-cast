@@ -26,6 +26,12 @@ backup/
 # Stub yang dibuat & ditimpa otomatis oleh cPanel Setup Python App
 passenger_wsgi.py
 
+# Artefak model: ditulis ulang aplikasi setiap pelatihan, jadi ini state
+# runtime milik tiap lingkungan, bukan source code. Kalau hilang, aplikasi
+# melatih ulang secara otomatis (lihat ForecastService).
+lpg_forecast_app/app/models/collab/*.joblib
+lpg_forecast_app/app/models/collab/models_metadata.json
+
 # OS / editor
 Thumbs.db
 .DS_Store
